@@ -1,6 +1,7 @@
 #pragma once
 #include <utility>
 #include <functional>
+#include <iostream>
 #include "chain.h"
 
 template <typename T>
@@ -25,6 +26,7 @@ public:
 
   template <typename F>
   std::pair<T, Canceller> operator () (F &&ob)  {
+    std::cout << "Add 1 more listener" << std::endl;
     return std::make_pair<T, Canceller>(getVal_(), obs_.Add(std::function(std::forward<F>(ob))));
   }
 
@@ -53,11 +55,30 @@ public:
 
 protected:
   void Notify(const std::optional<T> &legacy) {
-    obs_.ForEach([&legacy](const Observer &ob) { ob(legacy); });
+    std::vector<const Observer *> obs;
+    obs_.ForEach([&obs](const Observer &ob) { obs.push_back(&ob); });
     obs_.Clear();
+    for (auto iter = obs.begin(); iter != obs.end(); iter ++) {
+      (**iter)(legacy);
+    }
   }
 
 private:
   std::function<T()> getVal_;
   Chain<Observer> obs_;
+};
+
+template <typename T>
+class Subject: public Behavior<T>
+{
+public:
+  Subject(T &&value): Behavior<T>([this]() { return value_; }), value_(std::forward<T>(value)) { }
+
+  void Update(T &&value) {
+    value_ = std::forward<T>(value);
+    this->Notify(std::nullopt);
+  }
+
+private:
+  T value_;
 };

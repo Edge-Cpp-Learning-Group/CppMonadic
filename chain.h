@@ -1,6 +1,7 @@
 #pragma once
 #include <memory>
 #include <optional>
+#include <iostream>
 
 template <typename F>
 class SingleExecution {
@@ -12,6 +13,14 @@ public:
     se.callable_ = false;
   }
   ~SingleExecution() { (*this)(); }
+
+  SingleExecution<F>& operator = (SingleExecution &&se) {
+    (*this)();
+    f_ = std::forward<F>(se.f_);
+    callable_ = se.callable_;
+    se.callable_ = false;
+    return *this;
+  }
 
   void operator () () {
     if (callable_) {
@@ -36,17 +45,32 @@ private:
     {
       if (prev) {
         prev->next = next;
-        prev = nullptr;
       }
       if (next) {
         next->prev = prev;
-        next = nullptr;
       }
+      prev = nullptr;
+      next = nullptr;
       payload = std::nullopt;
     }
     Node *prev;
     Node *next;
     std::optional<T> payload;
+  };
+
+  class Deleter
+  {
+  public:
+    Deleter(std::unique_ptr<Node> ptr): ptr_(std::move(ptr)) {}
+    Deleter(Deleter &&del) = default;
+    Deleter(const Deleter &) = delete;
+    Deleter& operator = (Deleter &&del) = default;
+    Deleter& operator = (const Deleter &) = delete;
+
+    void operator () () { ptr_ = nullptr; }
+
+  private:
+    std::unique_ptr<Node> ptr_;
   };
 
   // Methods
@@ -57,8 +81,9 @@ public:
     node->prev = head_.prev;
     node->next = &head_;
     node->payload = std::forward<T>(value);
-    head_.prev = head_.prev->next = node.get();
-    return SingleExecution([node = std::move(node)]() mutable { node = nullptr; });
+    head_.prev->next = node.get();
+    head_.prev = node.get();
+    return SingleExecution(Deleter(std::move(node)));
   }
 
   void Clear() {
@@ -81,3 +106,12 @@ public:
 private:
   Node head_;
 };
+
+template <typename T>
+void printChain(const Chain<T> &chain) {
+    chain.ForEach([](const T &value) {
+        std::cout << value << ", ";
+    });
+    std::cout << std::endl;
+}
+

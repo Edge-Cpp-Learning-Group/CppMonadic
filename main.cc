@@ -14,14 +14,6 @@ void runSingleExec() {
     std::cout << "Mark" << std::endl;
 }
 
-template <typename T>
-void printChain(const Chain<T> &chain) {
-    chain.ForEach([](const T &value) {
-        std::cout << value << ", ";
-    });
-    std::cout << std::endl;
-}
-
 void runChain() {
     Chain<int> chain;
     auto rm1 = chain.Add(1);
@@ -33,21 +25,33 @@ void runChain() {
 }
 
 void runBehavior() {
-    Behavior<int> beh(1);
+    Subject<int> sub(1);
 
-    auto [res1, unob1] = beh([](std::optional<int> legacy) { std::cout << "Notified 1" << std::endl; });
+    auto [res1, unob1] = sub([](std::optional<int> legacy) { std::cout << "Notified 1" << std::endl; });
 
     std::cout << res1 << std::endl;
 
-    auto [res2, unob2] = beh([](std::optional<int> legacy) { std::cout << "Notified 2" << std::endl; });
+    std::optional<Behavior<int>::Canceller> unob3(std::nullopt);
+
+    auto [res2, unob2] = sub([&sub, &unob3](std::optional<int> legacy) mutable {
+        std::cout << "Notified 2" << std::endl;
+        auto [res3, unob3_] = sub([](std::optional<int> legacy2) {
+            std::cout << "Notified 3" << std::endl;
+        });
+        std::cout << res3 << std::endl;
+        unob3 = std::move(unob3_);
+    });
 
     std::cout << res2 << std::endl;
 
-    // beh.Notify();
+    std::cout << "Will update 2" << std::endl;
+    sub.Update(2);
 
     unob1();
 
-    // beh.Notify();
+    std::cout << "Will update 3" << std::endl;
+
+    sub.Update(3);
 }
 
 int main(int argc, const char *argv[])
