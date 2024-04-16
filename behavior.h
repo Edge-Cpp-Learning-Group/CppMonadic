@@ -11,9 +11,11 @@ public:
   using Canceller = decltype(std::declval<Chain<Observer>>().Add(std::declval<Observer>()));
 
 public:
-  Behavior(T &&value) : getVal_([value = std::forward<T>(value)]()
-                                { return value; }),
-                        obs_() {}
+  Behavior(T &&value) : Behavior([value = std::forward<T>(value)]()
+                             { return value; }) {}
+
+  template <typename F>
+  Behavior(F &&getVal) : getVal_(getVal), obs_() {}
 
   template <typename F>
   std::pair<T, Canceller> operator () (F &&ob)  {
@@ -24,6 +26,14 @@ public:
     obs_.ForEach([](const Observer &ob) { ob(); });
     obs_.Clear();
   }
+
+  // template <typename F>
+  // Behavior<std::invoke_result_t<F, T>> fmap(F &&f) {
+  //   using U = std::invoke_result_t<F, T>;
+
+  //   return Behavior([])
+  // }
+
 
 private:
   std::function<T()> getVal_;
