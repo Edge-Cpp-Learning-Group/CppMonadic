@@ -9,51 +9,40 @@ void runChain() {
     auto rm2 = chain.Add(2);
 
     printChain(chain);
-    rm1();
+    rm1->Run();
     printChain(chain);
 }
 
 void runObservable() {
-    Subject<int> sub(1);
+    Mutable<int> sub(1);
 
-    int num = 0;
-    auto unob = sub.Observe([&num](std::optional<int> val) {
-        if (val.has_value()) {
-            num = val.value();
-        }
+    std::cout << sub.Value() << std::endl;
+
+    auto unob = sub.Observe([](int val, int valOld) {
+        std::cout << valOld << " -> " << val << std::endl;
     });
-
-    std::cout << num << std::endl;
 
     sub.Update(2);
-
-    std::cout << num << std::endl;
-
-    unob();
     sub.Update(3);
 
-    std::cout << num << std::endl;
-
-    auto mp1 = sub | [](int val) { return val + 1; };
-    auto mp2 = mp1 | [](int val) { return val * 2; };
-    // auto mp2 = sub | [](int val) { return val + 1; }
-    //             | [](int val) { return val * 2; };
-
-    auto unob2 = mp2.Observe([&num](std::optional<int> val) {
-        if (val.has_value()) {
-            num = val.value();
-        }
-    });
-
-    std::cout << num << std::endl;
+    unob->Run();
 
     sub.Update(4);
-    std::cout << num << std::endl;
 
-    unob2();
+    std::cout << sub.Value() << std::endl;
+
+    auto ob = sub | [](int n) { return n + 1; };
+                //   | [](int n) { return n * 2; };
+
+    std::cout << ob.Value() << std::endl;
+
+    auto unob2 = ob.Observe([](int val, int valOld) {
+        std::cout << valOld << " -> " << val << std::endl;
+    });
+
     sub.Update(5);
 
-    std::cout << num << std::endl;
+    std::cout << ob.Value() << std::endl;
 }
 
 int main(int argc, const char *argv[])

@@ -4,7 +4,7 @@
 class Effect {
 public:
   virtual ~Effect() {};
-  virtual void operator () () = 0;
+  virtual void Run () = 0;
 };
 
 class OnceEffect: public Effect {
@@ -12,18 +12,18 @@ public:
   OnceEffect(std::unique_ptr<Effect> eff): eff_(std::move(eff)) {}
   OnceEffect(const OnceEffect &) = delete;
   OnceEffect(OnceEffect &&) = default;
-  ~OnceEffect() { (*this)(); }
+  ~OnceEffect() { Run(); }
 
   OnceEffect& operator = (const OnceEffect &) = delete;
   OnceEffect& operator = (OnceEffect &&once) {
-    (*this)();
+    Run();
     eff_ = std::move(once.eff_);
     return *this;
   }
 
-  virtual void operator () () override {
+  virtual void Run () override {
     if (eff_) {
-      (*eff_)();
+      eff_->Run();
       eff_ = nullptr;
     }
   }

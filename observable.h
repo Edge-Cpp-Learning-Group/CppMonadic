@@ -5,60 +5,88 @@
 #include "chain.h"
 
 template <typename T>
-class Observable
+class Subject
 {
 private:
-  using Observer = std::function<void(const std::optional<T> &)>;
+  using Observer = std::function<void(const T &, const T &)>;
 
 public:
-  using Unobserve = decltype(std::declval<Chain<Observer>>().Add(std::declval<Observer>()));
-  // using Unobserve = std::function<void()>;
+  Subject(T &&value): value_(std::forward<T>(value)), obs_() {}
 
-public:
-  Observable(): value_(std::nullopt), obs_() {}
+  Subject(const Subject &) = delete;
+  Subject & operator = (const Subject &) = delete;
 
-  Observable(const Observable &) = delete;
-  Observable & operator = (const Observable &) = delete;
-
-  Observable(Observable &&) = default;
-  Observable & operator = (Observable &&) = default;
-
-  ~Observable() { Notify(std::nullopt); }
+  Subject(Subject &&) = default;
+  Subject & operator = (Subject &&) = default;
 
   template <typename F>
-  Unobserve Observe(F &&ob) {
-    ob(value_);
+  std::unique_ptr<Effect> Observe(F &&ob) {
     return obs_.Add(std::function(std::forward<F>(ob)));
   }
 
-protected:
-  void Notify(std::optional<T> &&value) {
-    value_ = std::move(value);
-    obs_.ForEach([this](const Observer &ob) { ob(value_); });
+  void Notify(T &&value) {
+    obs_.ForEach([this, &value](const Observer &ob) { ob(value, value_); });
+    value_ = std::forward<T>(value);
   }
 
+  const T &Value() const { return value_; }
+
 private:
-  std::optional<T> value_;
+  T value_;
   Chain<Observer> obs_;
+};
+
+template <typename T>
+class Observable
+{
+public:
+  class Unobserve : public Effect
+  {
+  public:
+    Unobserve(std::shared_ptr<Subject<T>> subject, std::unique_ptr<Effect> unob)
+      : subject_(subject), unob_(std::move(unob)) { }
+
+    virtual void Run() override {
+      unob_ = nullptr;
+      subject_ = nullptr;
+    }
+    
+  private:
+    std::shared_ptr<Subject<T>> subject_;
+    std::unique_ptr<Effect> unob_;
+  };
+
+public:
+  Observable(T &&value) : subject_(std::make_shared<Subject<T>>(std::forward<T>(value))) {}
+
+  template <typename F>
+  std::shared_ptr<Effect> Observe(F &&f) const {
+    return std::make_shared<Unobserve>(subject_, subject_->Observe(f));
+  }
+
+  const T &Value() const {
+    return subject_->Value();
+  }
+
+protected:
+  std::shared_ptr<Subject<T>> subject_;
 };
 
 template <typename T>
 class PureObservable: public Observable<T>
 {
 public:
-  PureObservable(T &&value): Observable<T>() {
-    this->Notify(std::move(value));
-  }
+  PureObservable(T &&value): Observable<T>(std::forward<T>(value)) { }
 };
 
 template <typename T>
-class Subject: public PureObservable<T>
+class Mutable: public Observable<T>
 {
 public:
-  Subject(T &&value): PureObservable<T>(std::move(value)) { }
+  Mutable(T &&value): Observable<T>(std::forward<T>(value)) { }
 
   void Update(T &&value) {
-    this->Notify(std::move(value));
+    this->subject_->Notify(std::forward<T>(value));
   }
 };
 
@@ -67,20 +95,17 @@ class MapObservable: public Observable<T>
 {
 public:
   template <typename U, typename F>
-  MapObservable(Observable<U> &ob, F &&func):
-    unob_(ob.Observe([this, func = std::move(func)](const std::optional<U> &val) {
-      if (val.has_value()) {
-        this->Notify(func(val.value()));
-      } else {
-        this->Notify(std::nullopt);
-      }
+  MapObservable(const Observable<U> &ob, F &&func):
+    Observable<T>(func(ob.Value())),
+    unob_(ob.Observe([this, func = std::move(func)](const U &val, const U &valOld) {
+      this->subject_->Notify(func(val));
     })) { }
 
 private:
-  OnceEffect unob_;
+  std::shared_ptr<Effect> unob_;
 };
 
 template <typename T, typename F>
-Observable<std::invoke_result_t<F, T>> operator | (Observable<T> &ob, F &&f) {
+Observable<std::invoke_result_t<F, T>> operator | (const Observable<T> &ob, F &&f) {
   return MapObservable<std::invoke_result_t<F, T>>(ob, std::move(f));
 }

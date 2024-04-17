@@ -34,13 +34,13 @@ private:
   public:
     Deleter(std::unique_ptr<Node> ptr): ptr_(std::move(ptr)) {}
 
-    Deleter(Deleter &&del) = default;
-    Deleter& operator = (Deleter &&del) = default;
+    // Deleter(Deleter &&del) = default;
+    // Deleter& operator = (Deleter &&del) = default;
 
-    Deleter(const Deleter &) = delete;
-    Deleter& operator = (const Deleter &) = delete;
+    // Deleter(const Deleter &) = delete;
+    // Deleter& operator = (const Deleter &) = delete;
 
-    void operator () () override { ptr_ = nullptr; }
+    virtual void Run () override { ptr_ = nullptr; }
 
   private:
     std::unique_ptr<Node> ptr_;
@@ -48,7 +48,7 @@ private:
 
   // Methods
 public:
-  OnceEffect Add(T &&value)
+  std::unique_ptr<Effect> Add(T &&value)
   {
     std::unique_ptr<Node> node = std::make_unique<Node>();
     node->prev = head_.prev;
@@ -56,7 +56,8 @@ public:
     node->payload = std::forward<T>(value);
     head_.prev->next = node.get();
     head_.prev = node.get();
-    return OnceEffect(std::make_unique<Deleter>(std::move(node)));
+    return std::make_unique<OnceEffect>(
+        std::make_unique<Deleter>(std::move(node)));
   }
 
   void Clear() {
