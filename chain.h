@@ -3,35 +3,35 @@
 #include <optional>
 #include <iostream>
 
-template <typename F>
+class Effect {
+public:
+  virtual void operator () () = 0;
+};
+
 class SingleExecution {
 public:
-  SingleExecution(F &&f): f_(std::forward<F>(f)), callable_(true) { }
-  SingleExecution(const SingleExecution<F> &) = delete;
-  SingleExecution(SingleExecution<F> &&se) : f_(std::move(se.f_)), callable_(se.callable_)
-  {
-    se.callable_ = false;
-  }
+  SingleExecution(std::unique_ptr<Effect> pf): pf_(std::move(pf)) { }
+  SingleExecution(const SingleExecution &) = delete;
+  SingleExecution(SingleExecution &&se) = default;
   ~SingleExecution() { (*this)(); }
 
-  SingleExecution<F>& operator = (SingleExecution &&se) {
+  SingleExecution& operator = (SingleExecution &&se) {
     (*this)();
-    f_ = std::forward<F>(se.f_);
-    callable_ = se.callable_;
-    se.callable_ = false;
+
+    pf_ = std::move(se.pf_);
+    se.pf_ = nullptr;
+
     return *this;
   }
 
   void operator () () {
-    if (callable_) {
-      callable_ = false;
-      f_();
-    }
+    if (pf_) { (*pf_)(); }
   }
+
 private:
-  F f_;
-  bool callable_;
+  std::unique_ptr<Effect> pf_;
 };
+
 
 template <typename T>
 class Chain
@@ -58,16 +58,18 @@ private:
     std::optional<T> payload;
   };
 
-  class Deleter
+  class Deleter: public Effect
   {
   public:
     Deleter(std::unique_ptr<Node> ptr): ptr_(std::move(ptr)) {}
+
     Deleter(Deleter &&del) = default;
-    Deleter(const Deleter &) = delete;
     Deleter& operator = (Deleter &&del) = default;
+
+    Deleter(const Deleter &) = delete;
     Deleter& operator = (const Deleter &) = delete;
 
-    void operator () () { ptr_ = nullptr; }
+    void operator () () override { ptr_ = nullptr; }
 
   private:
     std::unique_ptr<Node> ptr_;
@@ -75,7 +77,7 @@ private:
 
   // Methods
 public:
-  auto Add(T &&value)
+  SingleExecution Add(T &&value)
   {
     std::unique_ptr<Node> node = std::make_unique<Node>();
     node->prev = head_.prev;
@@ -83,7 +85,10 @@ public:
     node->payload = std::forward<T>(value);
     head_.prev->next = node.get();
     head_.prev = node.get();
-    return SingleExecution(Deleter(std::move(node)));
+    return SingleExecution(std::make_unique<Deleter>(std::move(node)));
+    // return SingleExecution([node=std::move(node)]() mutable {
+    //   node = nullptr;
+    // });
   }
 
   void Clear() {

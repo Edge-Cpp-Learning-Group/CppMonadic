@@ -1,18 +1,7 @@
 #include <iostream>
 
 #include "chain.h"
-#include "behavior.h"
-
-auto getSingleExec() {
-    return SingleExecution([] {
-        std::cout << "Executed" << std::endl;
-    });
-}
-
-void runSingleExec() {
-    auto exec = getSingleExec();
-    std::cout << "Mark" << std::endl;
-}
+#include "observable.h"
 
 void runChain() {
     Chain<int> chain;
@@ -24,38 +13,51 @@ void runChain() {
     printChain(chain);
 }
 
-void runBehavior() {
+void runObservable() {
     Subject<int> sub(1);
 
-    auto [res1, unob1] = sub([](std::optional<int> legacy) { std::cout << "Notified 1" << std::endl; });
-
-    std::cout << res1 << std::endl;
-
-    std::optional<Behavior<int>::Canceller> unob3(std::nullopt);
-
-    auto [res2, unob2] = sub([&sub, &unob3](std::optional<int> legacy) mutable {
-        std::cout << "Notified 2" << std::endl;
-        auto [res3, unob3_] = sub([](std::optional<int> legacy2) {
-            std::cout << "Notified 3" << std::endl;
-        });
-        std::cout << res3 << std::endl;
-        unob3 = std::move(unob3_);
+    int num = 0;
+    auto unob = sub.Observe([&num](std::optional<int> val) {
+        if (val.has_value()) {
+            num = val.value();
+        }
     });
 
-    std::cout << res2 << std::endl;
+    std::cout << num << std::endl;
 
-    std::cout << "Will update 2" << std::endl;
     sub.Update(2);
 
-    unob1();
+    std::cout << num << std::endl;
 
-    std::cout << "Will update 3" << std::endl;
-
+    unob();
     sub.Update(3);
+
+    std::cout << num << std::endl;
+
+    auto mp1 = sub | [](int val) { return val + 1; };
+    auto mp2 = mp1 | [](int val) { return val * 2; };
+    // auto mp2 = sub | [](int val) { return val + 1; }
+    //             | [](int val) { return val * 2; };
+
+    auto unob2 = mp2.Observe([&num](std::optional<int> val) {
+        if (val.has_value()) {
+            num = val.value();
+        }
+    });
+
+    std::cout << num << std::endl;
+
+    sub.Update(4);
+    std::cout << num << std::endl;
+
+    unob2();
+    sub.Update(5);
+
+    std::cout << num << std::endl;
 }
 
 int main(int argc, const char *argv[])
 {
-    runBehavior();
+    runObservable();
     return 0;
 }
