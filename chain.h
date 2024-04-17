@@ -2,36 +2,7 @@
 #include <memory>
 #include <optional>
 #include <iostream>
-
-class Effect {
-public:
-  virtual void operator () () = 0;
-};
-
-class SingleExecution {
-public:
-  SingleExecution(std::unique_ptr<Effect> pf): pf_(std::move(pf)) { }
-  SingleExecution(const SingleExecution &) = delete;
-  SingleExecution(SingleExecution &&se) = default;
-  ~SingleExecution() { (*this)(); }
-
-  SingleExecution& operator = (SingleExecution &&se) {
-    (*this)();
-
-    pf_ = std::move(se.pf_);
-    se.pf_ = nullptr;
-
-    return *this;
-  }
-
-  void operator () () {
-    if (pf_) { (*pf_)(); }
-  }
-
-private:
-  std::unique_ptr<Effect> pf_;
-};
-
+#include "effect.h"
 
 template <typename T>
 class Chain
@@ -77,7 +48,7 @@ private:
 
   // Methods
 public:
-  SingleExecution Add(T &&value)
+  OnceEffect Add(T &&value)
   {
     std::unique_ptr<Node> node = std::make_unique<Node>();
     node->prev = head_.prev;
@@ -85,10 +56,7 @@ public:
     node->payload = std::forward<T>(value);
     head_.prev->next = node.get();
     head_.prev = node.get();
-    return SingleExecution(std::make_unique<Deleter>(std::move(node)));
-    // return SingleExecution([node=std::move(node)]() mutable {
-    //   node = nullptr;
-    // });
+    return OnceEffect(std::make_unique<Deleter>(std::move(node)));
   }
 
   void Clear() {

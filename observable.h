@@ -77,21 +77,10 @@ public:
     })) { }
 
 private:
-  SingleExecution unob_;
+  OnceEffect unob_;
 };
 
 template <typename T, typename F>
 Observable<std::invoke_result_t<F, T>> operator | (Observable<T> &ob, F &&f) {
   return MapObservable<std::invoke_result_t<F, T>>(ob, std::move(f));
 }
-
-  // fmap constructor
-  // template <typename U, template <typename, typename...> class F>
-  // Behavior(Behavior<U> &behU, F<T(U)> &&f) {
-
-  // }
-
-  // bind constructor
-  // template <typename U, template <typename, typename...> class F>
-  // Behavior(Behavior<U> &behU, F<Behavior<T>(U)> &&f) {
-  // }
