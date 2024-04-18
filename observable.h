@@ -2,7 +2,12 @@
 #include <utility>
 #include <functional>
 #include <iostream>
-#include "effect.h"
+
+class Effect {
+public:
+  virtual ~Effect() {};
+  virtual void Run () = 0;
+};
 
 template <typename T>
 class Observable
