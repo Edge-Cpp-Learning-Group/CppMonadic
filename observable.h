@@ -118,13 +118,13 @@ public:
   template <typename F>
   Observable<std::invoke_result_t<F, T>> map(F &&f) const {
     using ResultType = Observable<std::invoke_result_t<F, T>>;
-    return ResultType(std::make_shared<ResultType::MapSubject>(*this, std::forward<F>(f)));
+    return ResultType(std::make_shared<typename ResultType::MapSubject>(*this, std::forward<F>(f)));
   }
 
   template <typename F>
   std::invoke_result_t<F, T> bind(F &&f) const {
     using ResultType = std::invoke_result_t<F, T>;
-    return ResultType(std::make_shared<ResultType::JoinSubject>(map(std::forward<F>(f))));
+    return ResultType(std::make_shared<typename ResultType::JoinSubject>(map(std::forward<F>(f))));
   }
 
   template <typename F>
