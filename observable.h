@@ -8,11 +8,10 @@ template <typename T>
 class Observable
 {
 public:
+  using Observer = std::function<void(const T &, const T &)>;
+
   class Subject
   {
-  private:
-    using Observer = std::function<void(const T &, const T &)>;
-
   public:
     Subject(const T &value): value_(value), obs_() {}
 
@@ -23,7 +22,7 @@ public:
     Subject & operator = (Subject &&) = default;
 
     template <typename F>
-    std::unique_ptr<Effect> Observe(F &&ob) {
+    typename Chain<Observer>::Deleter Observe(F &&ob) {
       return obs_.Add(std::function(std::forward<F>(ob)));
     }
 
@@ -76,17 +75,17 @@ public:
   class Unobserve : public Effect
   {
   public:
-    Unobserve(std::shared_ptr<Subject> subject, std::unique_ptr<Effect> unob)
+    Unobserve(std::shared_ptr<Subject> subject, Chain<Observer>::Deleter &&unob)
       : subject_(subject), unob_(std::move(unob)) { }
 
     virtual void Run() override {
-      unob_ = nullptr;
+      unob_.Run();
       subject_ = nullptr;
     }
     
   private:
     std::shared_ptr<Subject> subject_;
-    std::unique_ptr<Effect> unob_;
+    Chain<Observer>::Deleter unob_;
   };
 
 public:

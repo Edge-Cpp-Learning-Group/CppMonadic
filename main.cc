@@ -9,7 +9,7 @@ void runChain() {
     auto rm2 = chain.Add(2);
 
     printChain(chain);
-    rm1->Run();
+    rm1.Run();
     printChain(chain);
 }
 
