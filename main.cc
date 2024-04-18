@@ -31,8 +31,11 @@ void runObservable() {
 
     std::cout << sub.Value() << std::endl;
 
-    auto ob = sub | [](int n) { return n + 1; }
-                  | [](int n) { return n * 2; };
+    auto ob = sub
+        .map([](int n) { return n + 1; })
+        .map([](int n) { return n * 2; }) 
+        .bind([](int n) { return Observable<int>(n + 1); });
+
 
     std::cout << ob.Value() << std::endl;
 
