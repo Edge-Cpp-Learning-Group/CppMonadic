@@ -1,17 +1,17 @@
 #pragma once
 #include <memory>
 #include <optional>
-#include <iostream>
-#include "effect.h"
 
 template <typename T>
 class Chain
 {
 // Types
 private:
-  struct Node
+  class Node
   {
-    Node(): prev(this), next(this), payload(std::nullopt) { }
+  public:
+    Node(): prev_(this), next_(this), payload_(std::nullopt) { }
+    Node(T &&value): prev_(this), next_(this), payload_(std::forward<T>(value)) { }
 
     Node(const Node &) = delete;
     Node & operator = (const Node &) = delete;
@@ -19,21 +19,34 @@ private:
     Node(Node &&) = default;
     Node & operator = (Node &&) = default;
 
-    ~Node()
-    {
-      if (prev) {
-        prev->next = next;
-      }
-      if (next) {
-        next->prev = prev;
-      }
-      prev = nullptr;
-      next = nullptr;
-      payload = std::nullopt;
+    ~Node() { Isolate(); }
+
+    void Isolate() {
+      prev_->next_ = next_;
+      next_->prev_ = prev_;
+      prev_ = this;
+      next_ = this;
     }
-    Node *prev;
-    Node *next;
-    std::optional<T> payload;
+
+    void InsertBefore(Node &node) {
+      prev_ = node.prev_;
+      next_ = &node;
+      node.prev_->next_ = this;
+      node.prev_ = this;
+    }
+
+    const Node *Next() const {
+      return next_;
+    }
+
+    const T &Value() const {
+      return payload_.value();
+    }
+
+  private:
+    Node *prev_;
+    Node *next_;
+    std::optional<T> payload_;
   };
 
 public:
@@ -59,30 +72,22 @@ public:
 
   // Methods
 public:
-  Deleter Add(T &&value)
-  {
-    std::unique_ptr<Node> node = std::make_unique<Node>();
-    node->prev = head_.prev;
-    node->next = &head_;
-    node->payload = std::forward<T>(value);
-    head_.prev->next = node.get();
-    head_.prev = node.get();
+  Deleter Add(T &&value) {
+    std::unique_ptr<Node> node = std::make_unique<Node>(std::forward<T>(value));
+    node->InsertBefore(head_);
     return Deleter(std::move(node));
   }
 
   void Clear() {
-    head_.prev->next = head_.next;
-    head_.next->prev = head_.prev;
-    head_.prev = &head_;
-    head_.next = &head_;
+    head_.Isolate();
   }
 
   template <typename F>
   void ForEach(F &&f) const {
-    Node *ptr = head_.next;
+    const Node *ptr = head_.Next();
     while (ptr != &head_) {
-      f(static_cast<const T &>(ptr->payload.value()));
-      ptr = ptr->next;
+      f(ptr->Value());
+      ptr = ptr->Next();
     }
   }
 

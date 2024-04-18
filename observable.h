@@ -2,7 +2,7 @@
 #include <utility>
 #include <functional>
 #include <iostream>
-#include "chain.h"
+#include "effect.h"
 
 template <typename T>
 class Observable
