@@ -2,12 +2,21 @@
 #include <utility>
 #include <functional>
 #include <iostream>
+#include <concepts>
 
 class Effect {
 public:
   virtual ~Effect() {};
   virtual void Run () = 0;
 };
+
+template <typename T> class Observable;
+
+template <typename T>
+concept observable = std::is_base_of_v<decltype(Observable(std::declval<T>())), T>;
+// requires(T x) {
+//   { Observable{x} } -> std::is_base_of<T>::value;
+// };
 
 template <typename T>
 class Observable
@@ -113,19 +122,19 @@ public:
   }
 
   template <typename F>
-  Observable<std::invoke_result_t<F, T>> operator | (F &&f) const {
-    return this->map(std::forward<F>(f));
-  }
-
-  template <typename F>
   std::invoke_result_t<F, T> bind(F &&f) const {
     using ResultType = std::invoke_result_t<F, T>;
-    return ResultType(std::make_shared<ResultType::JoinSubject>(*this | f));
+    return ResultType(std::make_shared<ResultType::JoinSubject>(map(std::forward<F>(f))));
   }
 
   template <typename F>
-  std::invoke_result_t<F, T> operator >> (F &&f) const {
+  std::invoke_result_t<F, T> operator >> (F &&f) const requires observable<std::invoke_result_t<F, T>> {
     return this->bind(std::forward<F>(f));
+  }
+
+  template <typename F>
+  Observable<std::invoke_result_t<F, T>> operator >> (F &&f) const {
+    return this->map(std::forward<F>(f));
   }
 
 protected:

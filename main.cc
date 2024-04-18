@@ -14,36 +14,30 @@ void runChain() {
 }
 
 void runObservable() {
-    Mutable<int> sub(1);
+    Mutable<int> mut1(1);
+    Mutable<int> mut2(1);
 
-    std::cout << sub.Value() << std::endl;
-
-    auto unob = sub.Observe([](int val, int valOld) {
-        std::cout << valOld << " -> " << val << std::endl;
-    });
-
-    sub.Update(2);
-    sub.Update(3);
-
-    unob->Run();
-
-    sub.Update(4);
-
-    std::cout << sub.Value() << std::endl;
-
-    auto ob = sub
-        .map([](int n) { return n + 1; })
-        .map([](int n) { return n * 2; }) 
-        .bind([](int n) { return Observable<int>(n + 1); });
+    auto ob = mut1
+        // mut1  + 1
+        >> [](int n) { return n + 1; } 
+        // (mut1 + 1) * 2
+        >> [](int n) { return n * 2; }
+        // (mut1 + 1) * 2 * mut2
+        >> [mut2](int n) { return mut2 >> [n](int m) { return m * n; }; };
 
 
+    // (1 + 1) * 2 * 1 = 4
     std::cout << ob.Value() << std::endl;
 
-    auto unob2 = ob.Observe([](int val, int valOld) {
+    auto unob = ob.Observe([](int val, int valOld) {
         std::cout << valOld << " -> " << val << std::endl;
     });
 
-    sub.Update(5);
+    // (2 + 1) * 2 * 1 = 6
+    mut1.Update(2);
+
+    // (2 + 1) * 2 * 3 = 18
+    mut2.Update(3);
 
     std::cout << ob.Value() << std::endl;
 }
