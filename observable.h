@@ -80,17 +80,17 @@ public:
   class Unobserve : public Effect
   {
   public:
-    Unobserve(std::shared_ptr<Subject> subject, Chain<Observer>::Deleter &&unob)
-      : subject_(subject), unob_(std::move(unob)) { }
+    Unobserve(std::shared_ptr<Subject> subject, Chain<Observer>::Deleter &&deleter)
+      : subject_(subject), deleter_(std::move(deleter)) { }
 
     virtual void Run() override {
-      unob_.Run();
+      deleter_.Run();
       subject_ = nullptr;
     }
     
   private:
     std::shared_ptr<Subject> subject_;
-    Chain<Observer>::Deleter unob_;
+    Chain<Observer>::Deleter deleter_;
   };
 
 public:
