@@ -96,7 +96,8 @@ TEST_CASE("Method bind as Monad", "[Observable]") {
   auto obsFormular = x.bind([=](int x) {
     return y.bind([=](int y) {
       return z.map([=](int z) {
-        return std::format("({} + {}) * {} = {}", x, y, z, (x + y) * z);
+        int w = (x + y) * z;
+        return std::format("({} + {}) * {} = {}", x, y, z, w);
       });
     });
   });
@@ -129,8 +130,10 @@ TEST_CASE("Sugar with operator >>", "[Observable]") {
   auto obsFormular =
     x >> [=](int x) { return
     y >> [=](int y) { return
-    z >> [=](int z) { return
-      std::format("({} + {}) * {} = {}", x, y, z, (x + y) * z); }; }; };
+    z >> [=](int z) {
+      int w = (x + y) * z;
+      return std::format("({} + {}) * {} = {}", x, y, z, w);
+    }; }; };
 
 
   REQUIRE(obsFormular.Value() == "(0 + 1) * 2 = 2");
