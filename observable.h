@@ -4,6 +4,8 @@
 #include <iostream>
 #include <concepts>
 
+#include "./chain.h"
+
 class Effect {
 public:
   virtual ~Effect() {};

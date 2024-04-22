@@ -95,12 +95,3 @@ public:
 private:
   Node head_;
 };
-
-template <typename T>
-void printChain(const Chain<T> &chain) {
-    chain.ForEach([](const T &value) {
-        std::cout << value << ", ";
-    });
-    std::cout << std::endl;
-}
-

@@ -20,5 +20,10 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(Catch2)
 
-add_executable(tests test.cpp)
+add_executable(
+  tests
+  test/chain.cpp
+  test/observable.cpp
+)
+
 target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)

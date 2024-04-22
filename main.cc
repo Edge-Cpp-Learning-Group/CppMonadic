@@ -3,6 +3,14 @@
 #include "chain.h"
 #include "observable.h"
 
+template <typename T>
+void printChain(const Chain<T> &chain) {
+    chain.ForEach([](const T &value) {
+        std::cout << value << ", ";
+    });
+    std::cout << std::endl;
+}
+
 void runChain() {
     Chain<int> chain;
     auto rm1 = chain.Add(1);
@@ -41,23 +49,10 @@ void runObservable() {
 
     std::cout << ob1.Value() << std::endl;
 
-    // auto f = Bound([](int x, int y) -> int { return x + y; }, 1);
-    // int r = f(2);
-    // std::cout << r << std::endl;
-
-    // auto ob2 = Lift([](int x) { return x + 1; })(mut1);
-
-    // auto unob2 = ob2.Observe([](int val, int valOld) {
-    //     std::cout << "ob2: " << valOld << " -> " << val << std::endl;
-    // });
-
     mut1.Update(3);
 
     Mutable<int> mut3(1);
 
-    // auto lf = Lift(std::function([](int x, int y){ return x * y; }));
-
-    // auto ob3 = Lift([](int x, int y, int z){ return x + y + z; })(mut1, mut2, mut3);
     auto ob3 = mut1 >> [=](int x) {
         return mut2 >> [=](int y) {
             return mut3 >> [=](int z) {
@@ -66,8 +61,6 @@ void runObservable() {
         };
     };
 
-    // std::cout<< "Get here" << std::endl;
-
     auto unob3 = ob3.Observe([](int val, int valOld) {
         std::cout << "ob3: " << valOld << " -> " << val << std::endl;
     });
@@ -75,8 +68,6 @@ void runObservable() {
     mut1.Update(4);
     mut2.Update(5);
     mut3.Update(6);
-    // std::unique_ptr<int> u(new int(1));
-    // auto ob4 = mut1.map([u = std::move(u)](int x) { return x + *u; });
 }
 
 int main(int argc, const char *argv[])
