@@ -14,9 +14,6 @@ template <typename T> class Observable;
 
 template <typename T>
 concept observable = std::is_base_of_v<decltype(Observable(std::declval<T>())), T>;
-// requires(T x) {
-//   { Observable{x} } -> std::is_base_of<T>::value;
-// };
 
 template <typename T>
 class Observable
@@ -36,8 +33,8 @@ public:
     Subject & operator = (Subject &&) = default;
 
     template <typename F>
-    typename Chain<Observer>::Deleter Observe(F &&ob) {
-      return obs_.Add(std::function(std::forward<F>(ob)));
+    typename Chain<Observer>::Deleter Observe(const F &ob) {
+      return obs_.Add(std::function(ob));
     }
 
     const T &Value() const { return value_; }
@@ -56,9 +53,9 @@ public:
   {
   public:
     template <typename U, typename F>
-    MapSubject(const Observable<U> &ob, F &&func):
+    MapSubject(const Observable<U> &ob, const F &func):
       Subject(func(ob.Value())),
-      unob_(ob.Observe([this, func = std::forward<F>(func)](const U &val, const U &valOld) {
+      unob_(ob.Observe([this, func = func](const U &val, const U &valOld) {
         this->Notify(func(val));
       })) { }
   private:
@@ -107,7 +104,7 @@ public:
   Observable(std::shared_ptr<Subject> subject) : subject_(subject) {}
 
   template <typename F>
-  std::shared_ptr<Effect> Observe(F &&f) const {
+  std::shared_ptr<Effect> Observe(const F &f) const {
     return std::make_shared<Unobserve>(subject_, subject_->Observe(f));
   }
 
@@ -116,25 +113,25 @@ public:
   }
 
   template <typename F>
-  Observable<std::invoke_result_t<F, T>> map(F &&f) const {
+  Observable<std::invoke_result_t<F, T>> map(const F &f) const {
     using ResultType = Observable<std::invoke_result_t<F, T>>;
-    return ResultType(std::make_shared<typename ResultType::MapSubject>(*this, std::forward<F>(f)));
+    return ResultType(std::make_shared<typename ResultType::MapSubject>(*this, f));
   }
 
   template <typename F>
-  std::invoke_result_t<F, T> bind(F &&f) const {
+  std::invoke_result_t<F, T> bind(const F &f) const {
     using ResultType = std::invoke_result_t<F, T>;
-    return ResultType(std::make_shared<typename ResultType::JoinSubject>(map(std::forward<F>(f))));
+    return ResultType(std::make_shared<typename ResultType::JoinSubject>(map(f)));
   }
 
   template <typename F>
-  std::invoke_result_t<F, T> operator >> (F &&f) const requires observable<std::invoke_result_t<F, T>> {
-    return this->bind(std::forward<F>(f));
+  std::invoke_result_t<F, T> operator >> (const F &f) const requires observable<std::invoke_result_t<F, T>> {
+    return this->bind(f);
   }
 
   template <typename F>
-  Observable<std::invoke_result_t<F, T>> operator >> (F &&f) const {
-    return this->map(std::forward<F>(f));
+  Observable<std::invoke_result_t<F, T>> operator >> (const F &f) const {
+    return this->map(f);
   }
 
 protected:

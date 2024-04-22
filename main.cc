@@ -17,7 +17,7 @@ void runObservable() {
     Mutable<int> mut1(1);
     Mutable<int> mut2(1);
 
-    auto ob = mut1
+    auto ob1 = mut1
         // mut1  + 1
         >> [](int n) { return n + 1; } 
         // (mut1 + 1) * 2
@@ -27,10 +27,10 @@ void runObservable() {
 
 
     // (1 + 1) * 2 * 1 = 4
-    std::cout << ob.Value() << std::endl;
+    std::cout << ob1.Value() << std::endl;
 
-    auto unob = ob.Observe([](int val, int valOld) {
-        std::cout << valOld << " -> " << val << std::endl;
+    auto unob1 = ob1.Observe([](int val, int valOld) {
+        std::cout << "ob1: " << valOld << " -> " << val << std::endl;
     });
 
     // (2 + 1) * 2 * 1 = 6
@@ -39,7 +39,44 @@ void runObservable() {
     // (2 + 1) * 2 * 3 = 18
     mut2.Update(3);
 
-    std::cout << ob.Value() << std::endl;
+    std::cout << ob1.Value() << std::endl;
+
+    // auto f = Bound([](int x, int y) -> int { return x + y; }, 1);
+    // int r = f(2);
+    // std::cout << r << std::endl;
+
+    // auto ob2 = Lift([](int x) { return x + 1; })(mut1);
+
+    // auto unob2 = ob2.Observe([](int val, int valOld) {
+    //     std::cout << "ob2: " << valOld << " -> " << val << std::endl;
+    // });
+
+    mut1.Update(3);
+
+    Mutable<int> mut3(1);
+
+    // auto lf = Lift(std::function([](int x, int y){ return x * y; }));
+
+    // auto ob3 = Lift([](int x, int y, int z){ return x + y + z; })(mut1, mut2, mut3);
+    auto ob3 = mut1 >> [=](int x) {
+        return mut2 >> [=](int y) {
+            return mut3 >> [=](int z) {
+                return x + y + z;
+            };
+        };
+    };
+
+    // std::cout<< "Get here" << std::endl;
+
+    auto unob3 = ob3.Observe([](int val, int valOld) {
+        std::cout << "ob3: " << valOld << " -> " << val << std::endl;
+    });
+
+    mut1.Update(4);
+    mut2.Update(5);
+    mut3.Update(6);
+    // std::unique_ptr<int> u(new int(1));
+    // auto ob4 = mut1.map([u = std::move(u)](int x) { return x + *u; });
 }
 
 int main(int argc, const char *argv[])
