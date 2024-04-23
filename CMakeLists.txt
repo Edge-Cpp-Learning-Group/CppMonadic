@@ -19,6 +19,7 @@ add_executable(
   tests
   test/chain.cpp
   test/observable.cpp
+  test/maybe.cpp
 )
 
 target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)

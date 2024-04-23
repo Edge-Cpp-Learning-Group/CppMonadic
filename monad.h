@@ -24,9 +24,8 @@ struct Monad {
 
   template <typename F, typename T>
   static std::invoke_result_t<F, T> Bind(const M<T> &mVal, const F &f) {
-    using U = std::invoke_result_t<F, T>;
-    M<M<U>> mmVal = M<M<U>>(f, mVal);
-    return M<U>(mmVal);
+    using ResultType = std::invoke_result_t<F, T>;
+    return ResultType(M<ResultType>(f, mVal));
   }
 
   template <typename T>
