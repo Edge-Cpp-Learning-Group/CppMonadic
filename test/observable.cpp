@@ -183,3 +183,32 @@ TEST_CASE("Sugar with operator >>", "[Observable]") {
   REQUIRE(ob.lastCallArgs() == std::pair{"(3 + 4) * 5 = 35", "(3 + 4) * 2 = 14"});
 }
 
+TEST_CASE("Transactional update", "[Transactional]") {
+  MockObserver<std::string> ob;
+  Mutable<int> x(0);
+  Mutable<int> y(1);
+  Mutable<int> z(2);
+
+  auto obsFormular =
+    x >> [=](int x) { return
+    y >> [=](int y) { return
+    z >> [=](int z) {
+      int w = (x + y) * z;
+      return std::format("({} + {}) * {} = {}", x, y, z, w);
+    }; }; };
+
+  Transactional<std::string> obTrans(obsFormular);
+
+  REQUIRE(obTrans.Value() == "(0 + 1) * 2 = 2");
+
+  auto unob = obTrans.Observe(ob);
+
+  obTrans.Transaction([&]() {
+    x.Update(3);
+    y.Update(4);
+    z.Update(5);
+  });
+
+  REQUIRE(ob.callCount() == 1);
+  REQUIRE(ob.lastCallArgs() == std::pair{"(3 + 4) * 5 = 35", "(0 + 1) * 2 = 2"});
+}

@@ -67,7 +67,7 @@ public:
       unobInner_(ob.Value().Observe([this](const T &valNew, const T &valOld) {
         this->Notify(valNew);
       })),
-      unobOutter_(ob.Observe([this](const Observable<T> &obNew, const Observable<T> &obOld) mutable {
+      unobOutter_(ob.Observe([this](const Observable<T> &obNew, const Observable<T> &obOld) {
         this->unobInner_ = std::move(obNew.Observe([this](const T &valNew, const T &valOld) {
           this->Notify(valNew);
         }));
@@ -149,4 +149,24 @@ public:
   void Update(const T &value) {
     this->subject_->Notify(value);
   }
+};
+
+template <typename T>
+class Transactional: public Observable<T>
+{
+public:
+  Transactional(Observable<T> ob):
+    Observable<T>(ob.Value()),
+    unob_(ob.Observe([this](const T &valNew, const T &valOld) { this->subject_->Notify(valNew); })) { }
+  
+  template <typename F>
+  void Transaction(F &&f) {
+    Observable<T> ob = unob_.Run();
+    f();
+    unob_ = ob.Observe([this](const T &valNew, const T &valOld) { this->subject_->Notify(valNew); });
+    this->subject_->Notify(ob.Value());
+  }
+
+private:
+  typename Observable<T>::Unobserve unob_;
 };
