@@ -92,14 +92,14 @@ TEST_CASE("Method bind as Monad", "[Observable]") {
   Mutable<int> y(1);
   Mutable<int> z(2);
 
-  auto obsFormular = Monad<Observable>::Bind([=](int x) {
-    return Monad<Observable>::Bind([=](int y) {
+  auto obsFormular = Monad<Observable>::Bind(x, [=](int x) {
+    return Monad<Observable>::Bind(y, [=](int y) {
       return Monad<Observable>::Map([=](int z) {
         int w = (x + y) * z;
         return std::format("({} + {}) * {} = {}", x, y, z, w);
       }, z);
-    }, y);
-  }, x);
+    });
+  });
 
 
   REQUIRE(obsFormular.Value() == "(0 + 1) * 2 = 2");

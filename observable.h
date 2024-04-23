@@ -180,7 +180,7 @@ struct Monad {
   }
 
   template <typename F, typename T>
-  static std::invoke_result_t<F, T> Bind(const F &f, M<T> mVal) {
+  static std::invoke_result_t<F, T> Bind(M<T> mVal, const F &f) {
     using U = std::invoke_result_t<F, T>;
     M<M<U>> mmVal = M<M<U>>(f, mVal);
     return M<U>(mmVal);
@@ -198,9 +198,9 @@ struct Monad {
 
   template <typename F, typename V, typename... Args>
   static auto Lift(const F &f, M<V> mVal, Args... args) {
-    return Bind([=](const V &v) {
+    return Bind(mVal, [=](const V &v) {
       return Lift(BindFn(std::function(f), v), args...);
-    }, mVal);
+    });
   }
 };
 
@@ -209,7 +209,7 @@ concept monad = std::is_base_of_v<decltype(M(std::declval<T>())), T>;
 
 template <template <typename> typename M, typename T, typename F>
 std::invoke_result_t<F, T> operator >> (const M<T> &val, const F &f) requires monad<M, std::invoke_result_t<F, T>> {
-  return Monad<M>::Bind(f, val);
+  return Monad<M>::Bind(val, f);
 }
 
 template <template <typename> typename M, typename T, typename F>
