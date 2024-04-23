@@ -106,20 +106,17 @@ public:
     typename Observable<T>::Unobserve unobInner_;
     typename Observable<Observable<T>>::Unobserve unobOutter_;
   };
+private:
+  Observable(std::shared_ptr<Subject> subject) : subject_(subject) {}
 
 public:
+  // Functor::Map
+  template <typename F, typename U>
+  Observable(const F &f, const Observable<U> &val): Observable(std::make_shared<MapSubject<U>>(val, f)) { }
+  // Monad::Pure
   Observable(const T &value): Observable(std::make_shared<Subject>(value)) { }
-  Observable(std::shared_ptr<Subject> subject) : subject_(subject) {}
+  // Monad::Join
   Observable(Observable<Observable<T>> ob) : Observable(std::make_shared<JoinSubject>(ob)) { }
-
-  template <typename F, typename V>
-  Observable(const F &f, Observable<V> ob): Observable(std::make_shared<MapSubject<V>>(ob, f)) { }
-
-  template <typename F, typename V, typename... Args>
-  Observable(const F &f, Observable<V> ob, Args... args):
-    Observable(std::make_shared<JoinSubject>(ob.Bind([=](const V &v) {
-      return Observable(BindFn(std::function(f), v), args...);
-    }))) {}
 
   bool operator == (const Observable<T> &ob) const {
     return subject_ == ob.subject_;
@@ -136,23 +133,14 @@ public:
 
   template <typename F>
   Observable<std::invoke_result_t<F, T>> Map(const F &f) const {
-    return Observable<std::invoke_result_t<F, T>>(f, *this);
+    using ResultType = Observable<std::invoke_result_t<F, T>>;
+    return ResultType(f, *this);
   }
 
   template <typename F>
   std::invoke_result_t<F, T> Bind(const F &f) const {
     using ResultType = std::invoke_result_t<F, T>;
-    return ResultType(std::make_shared<typename ResultType::JoinSubject>(Map(f)));
-  }
-
-  template <typename F>
-  std::invoke_result_t<F, T> operator >> (const F &f) const requires observable<std::invoke_result_t<F, T>> {
-    return this->Bind(f);
-  }
-
-  template <typename F>
-  Observable<std::invoke_result_t<F, T>> operator >> (const F &f) const {
-    return this->Map(f);
+    return ResultType(Map(f));
   }
 
 protected:
@@ -189,3 +177,51 @@ public:
 private:
   typename Observable<T>::Unobserve unob_;
 };
+
+template <template <typename> typename M>
+struct Monad {
+  template <typename T>
+  static M<T> Pure(const T &val) {
+    return M<T>(val);
+  }
+
+  template <typename F, typename T>
+  static M<std::invoke_result_t<F, T>> Map(const F &f, M<T> mVal) {
+    return mVal.Map(f);
+  }
+
+  template <typename F, typename T>
+  static std::invoke_result_t<F, T> Bind(const F &f, M<T> mVal) {
+    return mVal.Bind(f);
+  }
+
+  template <typename T>
+  static M<T> Join(M<M<T>> mmVal) {
+    return M<T>(mmVal);
+  }
+
+  template <typename F, typename V>
+  static M<std::invoke_result_t<F, V>> Lift(const F &f, M<V> ob) {
+    return ob.Map(f);
+  }
+
+  template <typename F, typename V, typename... Args>
+  static auto Lift(const F &f, M<V> ob, Args... args) {
+    return ob.Bind([=](const V &v) {
+      return Lift(BindFn(std::function(f), v), args...);
+    });
+  }
+};
+
+template <template <typename> typename M, typename T>
+concept monad = std::is_base_of_v<decltype(M(std::declval<T>())), T>;
+
+template <template <typename> typename M, typename T, typename F>
+std::invoke_result_t<F, T> operator >> (const M<T> &val, const F &f) requires monad<M, std::invoke_result_t<F, T>> {
+  return val.Bind(f);
+}
+
+template <template <typename> typename M, typename T, typename F>
+M<std::invoke_result_t<F, T>> operator >> (const M<T> &val, const F &f) {
+  return val.Map(f);
+}

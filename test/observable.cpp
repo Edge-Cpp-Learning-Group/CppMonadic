@@ -157,9 +157,9 @@ TEST_CASE("Sugar with operator >>", "[Observable]") {
   Mutable<int> z(2);
 
   auto obsFormular =
-    x >> [=](int x) { return
-    y >> [=](int y) { return
-    z >> [=](int z) {
+    static_cast<Observable<int>>(x) >> [=](int x) { return
+    static_cast<Observable<int>>(y) >> [=](int y) { return
+    static_cast<Observable<int>>(z) >> [=](int z) {
       int w = (x + y) * z;
       return std::format("({} + {}) * {} = {}", x, y, z, w);
     }; }; };
@@ -189,9 +189,9 @@ TEST_CASE("Transactional update", "[Transactional]") {
   Mutable<int> z(2);
 
   auto obsFormular =
-    x >> [=](int x) { return
-    y >> [=](int y) { return
-    z >> [=](int z) {
+    static_cast<Observable<int>>(x) >> [=](int x) { return
+    static_cast<Observable<int>>(y) >> [=](int y) { return
+    static_cast<Observable<int>>(z) >> [=](int z) {
       int w = (x + y) * z;
       return std::format("({} + {}) * {} = {}", x, y, z, w);
     }; }; };
@@ -212,13 +212,13 @@ TEST_CASE("Transactional update", "[Transactional]") {
   REQUIRE(ob.lastCallArgs() == std::pair{"(3 + 4) * 5 = 35", "(0 + 1) * 2 = 2"});
 }
 
-TEST_CASE("Composing constructor", "[Observable]") {
+TEST_CASE("Lift Calls", "[Observable]") {
   MockObserver<int> ob;
   Mutable<int> x(0);
   Mutable<int> y(1);
   Mutable<int> z(2);
 
-  Observable<int> obs([](int a, int b, int c) {
+  auto obs = Monad<Observable>::Lift([](int a, int b, int c) {
     return a + b + c;
   }, x, y, z);
 
@@ -247,9 +247,15 @@ TEST_CASE("Integrated test case", "[Observable]") {
   Mutable<int> x(0);
   Mutable<int> y(1);
   Mutable<int> z(2);
+  auto obs0 = Monad<Observable>::Lift([](int a, int b, int c) {
+    return a + b + c;
+  }, x, y, z);
 
   auto obs = Transactional(
-    Observable<int>([](int a, int b, int c) {
+    // Observable<int>([](int a, int b, int c) {
+    //   return a + b + c;
+    // }, x, y, z)
+    Monad<Observable>::Lift([](int a, int b, int c) {
       return a + b + c;
     }, x, y, z)
   );
