@@ -94,11 +94,12 @@ public:
 
     Unobserve(const Unobserve &) = delete;
     Unobserve& operator = (const Unobserve &) = delete;
+
     Unobserve(Unobserve &&) = default;
     Unobserve& operator = (Unobserve &&unob) = default;
 
-    Observable<T> Run() {
-      deleter_.Run();
+    Observable<T> operator () () {
+      deleter_();
       return Observable<T>(std::move(subject_));
     }
     
@@ -180,7 +181,7 @@ public:
   
   template <typename F>
   void Transaction(F &&f) {
-    Observable<T> ob = unob_.Run();
+    Observable<T> ob = unob_();
     f();
     unob_ = ob.Observe([this](const T &valNew, const T &valOld) { this->subject_->Notify(valNew); });
     this->subject_->Notify(ob.Value());

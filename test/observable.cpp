@@ -43,7 +43,7 @@ TEST_CASE("Observe and unobserve", "[Observable]") {
   REQUIRE(ob.callCount() == 1);
   REQUIRE(ob.lastCallArgs() == std::pair{1, 0});
 
-  unob1.Run();
+  unob1();
 
   mut.Update(2);
   REQUIRE(ob.callCount() == 1);

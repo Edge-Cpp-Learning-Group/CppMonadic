@@ -57,7 +57,7 @@ public:
 
     Deleter(Deleter &&del) = default;
     Deleter& operator = (Deleter &&del) {
-      Run();
+      (*this)();
       ptr_ = std::move(del.ptr_);
       return *this;
     }
@@ -65,7 +65,7 @@ public:
     Deleter(const Deleter &) = delete;
     Deleter& operator = (const Deleter &) = delete;
 
-    void Run () { ptr_ = nullptr; }
+    void operator () () { ptr_ = nullptr; }
 
   private:
     std::unique_ptr<Node> ptr_;

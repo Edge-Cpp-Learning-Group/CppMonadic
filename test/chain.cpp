@@ -28,7 +28,7 @@ TEST_CASE("Add and remove elements", "[Chain]") {
 
   REQUIRE(toVector(chain) == std::vector<int>{1, 2});
 
-  rm1.Run();
+  rm1();
   REQUIRE(toVector(chain) == std::vector<int>{2});
 
   chain.Clear();
@@ -77,7 +77,7 @@ TEST_CASE("Memory management", "[Chain]") {
   auto rm1 = chain.Add(Tracker{});
   REQUIRE(Tracker::count == 1);
 
-  rm1.Run();
+  rm1();
   REQUIRE(Tracker::count == 0);
 
   auto rm2 = chain.Add(Tracker{});
