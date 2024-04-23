@@ -5,11 +5,6 @@ project(HelloWorld)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
-add_executable(
-    HelloWorld
-    main.cc
-)
-
 Include(FetchContent)
 
 FetchContent_Declare(
