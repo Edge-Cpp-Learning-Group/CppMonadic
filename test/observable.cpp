@@ -93,7 +93,7 @@ TEST_CASE("Method bind as Monad", "[Observable]") {
   auto [y, UpdateY] = Observable<int>::Mutable(1);
   auto [z, UpdateZ] = Observable<int>::Mutable(2);
 
-  auto obsFormular = Monad<Observable>::Bind(x, [=](int x) {
+  auto formular = Monad<Observable>::Bind(x, [=](int x) {
     return Monad<Observable>::Bind(y, [=](int y) {
       return Monad<Observable>::Map([=](int z) {
         int w = (x + y) * z;
@@ -103,9 +103,9 @@ TEST_CASE("Method bind as Monad", "[Observable]") {
   });
 
 
-  REQUIRE(obsFormular.Value() == "(0 + 1) * 2 = 2");
+  REQUIRE(formular.Value() == "(0 + 1) * 2 = 2");
 
-  auto unob = obsFormular.Observe(ob);
+  auto unob = formular.Observe(ob);
 
   UpdateX(3);
   REQUIRE(ob.callCount() == 1);
@@ -157,7 +157,7 @@ TEST_CASE("Sugar with operator >>", "[Observable]") {
   auto [y, UpdateY] = Observable<int>::Mutable(1);
   auto [z, UpdateZ] = Observable<int>::Mutable(2);
 
-  auto obsFormular =
+  auto formular =
     x >> [=](int x) { return
     y >> [=](int y) { return
     z >> [=](int z) {
@@ -166,9 +166,9 @@ TEST_CASE("Sugar with operator >>", "[Observable]") {
     }; }; };
 
 
-  REQUIRE(obsFormular.Value() == "(0 + 1) * 2 = 2");
+  REQUIRE(formular.Value() == "(0 + 1) * 2 = 2");
 
-  auto unob = obsFormular.Observe(ob);
+  auto unob = formular.Observe(ob);
 
   UpdateX(3);
   REQUIRE(ob.callCount() == 1);
@@ -189,7 +189,7 @@ TEST_CASE("Transactional update", "[Transactional]") {
   auto [y, UpdateY] = Observable<int>::Mutable(1);
   auto [z, UpdateZ] = Observable<int>::Mutable(2);
 
-  auto obsFormular =
+  auto formular =
     static_cast<Observable<int>>(x) >> [=](int x) { return
     static_cast<Observable<int>>(y) >> [=](int y) { return
     static_cast<Observable<int>>(z) >> [=](int z) {
@@ -197,13 +197,13 @@ TEST_CASE("Transactional update", "[Transactional]") {
       return std::format("({} + {}) * {} = {}", x, y, z, w);
     }; }; };
 
-  Transactional<std::string> obTrans(obsFormular);
+  auto [obs, Transaction] = Transactional(formular);
 
-  REQUIRE(obTrans.Value() == "(0 + 1) * 2 = 2");
+  REQUIRE(obs.Value() == "(0 + 1) * 2 = 2");
 
-  auto unob = obTrans.Observe(ob);
+  auto unob = obs.Observe(ob);
 
-  obTrans.Transaction([&]() {
+  Transaction([&]() {
     UpdateX(3);
     UpdateY(4);
     UpdateZ(5);
@@ -252,10 +252,7 @@ TEST_CASE("Integrated test case", "[Observable]") {
     return a + b + c;
   }, x, y, z);
 
-  auto obs = Transactional(
-    // Observable<int>([](int a, int b, int c) {
-    //   return a + b + c;
-    // }, x, y, z)
+  auto [obs, Transaction] = Transactional(
     Monad<Observable>::Lift([](int a, int b, int c) {
       return a + b + c;
     }, x, y, z)
@@ -263,7 +260,7 @@ TEST_CASE("Integrated test case", "[Observable]") {
 
   auto unob = obs.Observe(ob);
 
-  obs.Transaction([=]() mutable {
+  Transaction([=]() mutable {
     UpdateX(3);
     UpdateY(4);
     UpdateZ(5);
@@ -273,7 +270,7 @@ TEST_CASE("Integrated test case", "[Observable]") {
   REQUIRE(ob.callCount() == 1);
   REQUIRE(ob.lastCallArgs() == std::pair{12, 3});
 
-  obs.Transaction([=]() mutable {
+  Transaction([=]() mutable {
     UpdateX(5);
     UpdateY(4);
     UpdateZ(3);

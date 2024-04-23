@@ -146,21 +146,32 @@ public:
 };
 
 template <typename T>
-class Transactional: public Observable<T>
+class TransactionalUpdater
 {
 public:
-  Transactional(Observable<T> ob):
-    Observable<T>(ob.Value()),
-    unob_(ob.Observe([this](const T &valNew, const T &valOld) { this->subject_->Notify(valNew); })) { }
-  
+  using Unobserve = Observable<T>::Unobserve;
+  using Updater = Observable<T>::Updater;
+public:
+  TransactionalUpdater(Unobserve &&unob, Updater update):
+    unob_(std::move(unob)), update_(update) { }
+
   template <typename F>
-  void Transaction(F &&f) {
+  void operator () (F &&f) {
     Observable<T> ob = unob_();
     f();
-    unob_ = ob.Observe([this](const T &valNew, const T &valOld) { this->subject_->Notify(valNew); });
-    this->subject_->Notify(ob.Value());
+    unob_ = ob.Observe([this](const T &valNew, const T &) { this->update_(valNew); });
+    update_(ob.Value());
   }
 
 private:
-  typename Observable<T>::Unobserve unob_;
+  Updater update_;
+  Unobserve unob_;
 };
+
+template <typename T>
+std::pair<Observable<T>, TransactionalUpdater<T>> Transactional(Observable<T> ob) {
+  auto [obT, updateT] = Observable<T>::Mutable(ob.Value());
+  return std::make_pair(obT, TransactionalUpdater<T>(
+    ob.Observe([=](const T &valNew, const T &) { updateT(valNew); }),
+    updateT));
+}
