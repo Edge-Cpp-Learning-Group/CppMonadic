@@ -8,7 +8,7 @@
 template <typename T> class Observable;
 
 template <typename T>
-class Observable
+class Observable final
 {
 public:
   using Observer = std::function<void(const T &, const T &)>;
