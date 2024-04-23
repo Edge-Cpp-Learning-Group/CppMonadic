@@ -252,6 +252,7 @@ TEST_CASE("Integrated test case", "[Observable]") {
   );
 
   auto unob = obs.Observe(ob);
+
   obs.Transaction([=]() mutable {
     x.Update(3);
     y.Update(4);
@@ -261,4 +262,12 @@ TEST_CASE("Integrated test case", "[Observable]") {
   REQUIRE(obs.Value() == 12);
   REQUIRE(ob.callCount() == 1);
   REQUIRE(ob.lastCallArgs() == std::pair{12, 3});
+
+  obs.Transaction([=]() mutable {
+    x.Update(5);
+    y.Update(4);
+    z.Update(3);
+  });
+  REQUIRE(obs.Value() == 12);
+  REQUIRE(ob.callCount() == 1);
 }
