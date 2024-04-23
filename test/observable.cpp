@@ -240,3 +240,26 @@ TEST_CASE("Composing constructor", "[Observable]") {
   REQUIRE(ob.callCount() == 3);
   REQUIRE(ob.lastCallArgs() == std::pair{12, 9});
 }
+
+TEST_CASE("Integrated test case", "[Observable]") {
+  MockObserver<int> ob;
+  Mutable<int> x(0);
+  Mutable<int> y(1);
+  Mutable<int> z(2);
+
+  auto obs = Transactional(
+    Observable<int>(
+      std::function([](int a, int b, int c) { return a + b + c; }), x, y, z)
+  );
+
+  auto unob = obs.Observe(ob);
+  obs.Transaction([=]() mutable {
+    x.Update(3);
+    y.Update(4);
+    z.Update(5);
+  });
+
+  REQUIRE(obs.Value() == 12);
+  REQUIRE(ob.callCount() == 1);
+  REQUIRE(ob.lastCallArgs() == std::pair{12, 3});
+}
