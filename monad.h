@@ -17,30 +17,30 @@ struct Monad {
   }
 
   template <typename F, typename T>
-  static M<std::invoke_result_t<F, T>> Map(const F &f, M<T> mVal) {
+  static M<std::invoke_result_t<F, T>> Map(const F &f, const M<T> &mVal) {
     using ResultType = M<std::invoke_result_t<F, T>>;
     return ResultType(f, mVal);
   }
 
   template <typename F, typename T>
-  static std::invoke_result_t<F, T> Bind(M<T> mVal, const F &f) {
+  static std::invoke_result_t<F, T> Bind(const M<T> &mVal, const F &f) {
     using U = std::invoke_result_t<F, T>;
     M<M<U>> mmVal = M<M<U>>(f, mVal);
     return M<U>(mmVal);
   }
 
   template <typename T>
-  static M<T> Join(M<M<T>> mmVal) {
+  static M<T> Join(const M<M<T>> &mmVal) {
     return M<T>(mmVal);
   }
 
   template <typename F, typename V>
-  static M<std::invoke_result_t<F, V>> Lift(const F &f, M<V> mVal) {
+  static M<std::invoke_result_t<F, V>> Lift(const F &f, const M<V> &mVal) {
     return Monad<M>::Map(f, mVal);
   }
 
   template <typename F, typename V, typename... Args>
-  static auto Lift(const F &f, M<V> mVal, Args... args) {
+  static auto Lift(const F &f, const M<V> &mVal, Args... args) {
     return Bind(mVal, [=](const V &v) {
       return Lift(BindFn(std::function(f), v), args...);
     });
