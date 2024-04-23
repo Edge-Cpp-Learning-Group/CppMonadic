@@ -35,32 +35,32 @@ private:
 TEST_CASE("Observe and unobserve", "[Observable]") {
   MockObserver<int> ob;
 
-  Mutable<int> mut(0);
+  auto [x, UpdateX] = Observable<int>::Mutable(0);
 
-  auto unob1 = mut.Observe(ob);
+  auto unob1 = x.Observe(ob);
   REQUIRE(ob.callCount() == 0);
 
-  mut.Update(1);
+  UpdateX(1);
   REQUIRE(ob.callCount() == 1);
   REQUIRE(ob.lastCallArgs() == std::pair{1, 0});
 
   unob1();
 
-  mut.Update(2);
+  UpdateX(2);
   REQUIRE(ob.callCount() == 1);
 
   do {
-    auto unob2 = mut.Observe(ob);
-    mut.Update(3);
+    auto unob2 = x.Observe(ob);
+    UpdateX(3);
     REQUIRE(ob.callCount() == 2);
     REQUIRE(ob.lastCallArgs() == std::pair{3, 2});
   } while (0);
 
-  mut.Update(4);
+  UpdateX(4);
   REQUIRE(ob.callCount() == 2);
 
-  auto unob3 = mut.Observe(ob);
-  mut.Update(4);
+  auto unob3 = x.Observe(ob);
+  UpdateX(4);
   REQUIRE(ob.callCount() == 2);
 }
 
@@ -68,13 +68,13 @@ TEST_CASE("Method map as Functor", "[Observable]") {
   MockObserver<int> obI;
   MockObserver<std::string> obS;
 
-  Mutable<int> mut(0);
-  Observable<std::string> obsStr = Monad<Observable>::Map([](int i) { return std::to_string(i); }, mut);
+  auto [x, UpdateX] = Observable<int>::Mutable(0);
+  Observable<std::string> obsStr = Monad<Observable>::Map([](int i) { return std::to_string(i); }, x);
 
-  auto unobI = mut.Observe(obI);
+  auto unobI = x.Observe(obI);
   auto unobS = obsStr.Observe(obS);
 
-  mut.Update(1);
+  UpdateX(1);
 
   REQUIRE(obI.callCount() == 1);
   REQUIRE(obI.lastCallArgs() == std::pair{1, 0});
@@ -89,9 +89,9 @@ TEST_CASE("Method pure (constructor) as Monad", "[Observable]") {
 
 TEST_CASE("Method bind as Monad", "[Observable]") {
   MockObserver<std::string> ob;
-  Mutable<int> x(0);
-  Mutable<int> y(1);
-  Mutable<int> z(2);
+  auto [x, UpdateX] = Observable<int>::Mutable(0);
+  auto [y, UpdateY] = Observable<int>::Mutable(1);
+  auto [z, UpdateZ] = Observable<int>::Mutable(2);
 
   auto obsFormular = Monad<Observable>::Bind(x, [=](int x) {
     return Monad<Observable>::Bind(y, [=](int y) {
@@ -107,23 +107,23 @@ TEST_CASE("Method bind as Monad", "[Observable]") {
 
   auto unob = obsFormular.Observe(ob);
 
-  x.Update(3);
+  UpdateX(3);
   REQUIRE(ob.callCount() == 1);
   REQUIRE(ob.lastCallArgs() == std::pair{"(3 + 1) * 2 = 8", "(0 + 1) * 2 = 2"});
 
-  y.Update(4);
+  UpdateY(4);
   REQUIRE(ob.callCount() == 2);
   REQUIRE(ob.lastCallArgs() == std::pair{"(3 + 4) * 2 = 14", "(3 + 1) * 2 = 8"});
 
-  z.Update(5);
+  UpdateZ(5);
   REQUIRE(ob.callCount() == 3);
   REQUIRE(ob.lastCallArgs() == std::pair{"(3 + 4) * 5 = 35", "(3 + 4) * 2 = 14"});
 }
 
 TEST_CASE("Method join as Monad", "[Observable]") {
-  Mutable<int> x(0);
-  Mutable<int> y(1);
-  Mutable<Observable<int>> z(x);
+  auto [x, UpdateX] = Observable<int>::Mutable(0);
+  auto [y, UpdateY] = Observable<int>::Mutable(1);
+  auto [z, UpdateZ] = Observable<Observable<int>>::Mutable(x);
   Observable<int> w(z);
   MockObserver<int> ob;
 
@@ -131,36 +131,36 @@ TEST_CASE("Method join as Monad", "[Observable]") {
 
   REQUIRE(w.Value() == 0);
 
-  x.Update(2);
+  UpdateX(2);
   REQUIRE(w.Value() == 2);
   REQUIRE(ob.callCount() == 1);
   REQUIRE(ob.lastCallArgs() == std::pair(2, 0));
 
-  z.Update(y);
+  UpdateZ(y);
   REQUIRE(w.Value() == 1);
   REQUIRE(ob.callCount() == 2);
   REQUIRE(ob.lastCallArgs() == std::pair(1, 2));
 
-  y.Update(3);
+  UpdateY(3);
   REQUIRE(w.Value() == 3);
   REQUIRE(ob.callCount() == 3);
   REQUIRE(ob.lastCallArgs() == std::pair(3, 1));
 
-  x.Update(4);
+  UpdateX(4);
   REQUIRE(w.Value() == 3);
   REQUIRE(ob.callCount() == 3);
 }
 
 TEST_CASE("Sugar with operator >>", "[Observable]") {
   MockObserver<std::string> ob;
-  Mutable<int> x(0);
-  Mutable<int> y(1);
-  Mutable<int> z(2);
+  auto [x, UpdateX] = Observable<int>::Mutable(0);
+  auto [y, UpdateY] = Observable<int>::Mutable(1);
+  auto [z, UpdateZ] = Observable<int>::Mutable(2);
 
   auto obsFormular =
-    static_cast<Observable<int>>(x) >> [=](int x) { return
-    static_cast<Observable<int>>(y) >> [=](int y) { return
-    static_cast<Observable<int>>(z) >> [=](int z) {
+    x >> [=](int x) { return
+    y >> [=](int y) { return
+    z >> [=](int z) {
       int w = (x + y) * z;
       return std::format("({} + {}) * {} = {}", x, y, z, w);
     }; }; };
@@ -170,24 +170,24 @@ TEST_CASE("Sugar with operator >>", "[Observable]") {
 
   auto unob = obsFormular.Observe(ob);
 
-  x.Update(3);
+  UpdateX(3);
   REQUIRE(ob.callCount() == 1);
   REQUIRE(ob.lastCallArgs() == std::pair{"(3 + 1) * 2 = 8", "(0 + 1) * 2 = 2"});
 
-  y.Update(4);
+  UpdateY(4);
   REQUIRE(ob.callCount() == 2);
   REQUIRE(ob.lastCallArgs() == std::pair{"(3 + 4) * 2 = 14", "(3 + 1) * 2 = 8"});
 
-  z.Update(5);
+  UpdateZ(5);
   REQUIRE(ob.callCount() == 3);
   REQUIRE(ob.lastCallArgs() == std::pair{"(3 + 4) * 5 = 35", "(3 + 4) * 2 = 14"});
 }
 
 TEST_CASE("Transactional update", "[Transactional]") {
   MockObserver<std::string> ob;
-  Mutable<int> x(0);
-  Mutable<int> y(1);
-  Mutable<int> z(2);
+  auto [x, UpdateX] = Observable<int>::Mutable(0);
+  auto [y, UpdateY] = Observable<int>::Mutable(1);
+  auto [z, UpdateZ] = Observable<int>::Mutable(2);
 
   auto obsFormular =
     static_cast<Observable<int>>(x) >> [=](int x) { return
@@ -204,9 +204,9 @@ TEST_CASE("Transactional update", "[Transactional]") {
   auto unob = obTrans.Observe(ob);
 
   obTrans.Transaction([&]() {
-    x.Update(3);
-    y.Update(4);
-    z.Update(5);
+    UpdateX(3);
+    UpdateY(4);
+    UpdateZ(5);
   });
 
   REQUIRE(ob.callCount() == 1);
@@ -215,9 +215,9 @@ TEST_CASE("Transactional update", "[Transactional]") {
 
 TEST_CASE("Lift Calls", "[Observable]") {
   MockObserver<int> ob;
-  Mutable<int> x(0);
-  Mutable<int> y(1);
-  Mutable<int> z(2);
+  auto [x, UpdateX] = Observable<int>::Mutable(0);
+  auto [y, UpdateY] = Observable<int>::Mutable(1);
+  auto [z, UpdateZ] = Observable<int>::Mutable(2);
 
   auto obs = Monad<Observable>::Lift([](int a, int b, int c) {
     return a + b + c;
@@ -227,17 +227,17 @@ TEST_CASE("Lift Calls", "[Observable]") {
 
   auto unob = obs.Observe(ob);
 
-  x.Update(3);
+  UpdateX(3);
   REQUIRE(obs.Value() == 6);
   REQUIRE(ob.callCount() == 1);
   REQUIRE(ob.lastCallArgs() == std::pair{6, 3});
 
-  y.Update(4);
+  UpdateY(4);
   REQUIRE(obs.Value() == 9);
   REQUIRE(ob.callCount() == 2);
   REQUIRE(ob.lastCallArgs() == std::pair{9, 6});
 
-  z.Update(5);
+  UpdateZ(5);
   REQUIRE(obs.Value() == 12);
   REQUIRE(ob.callCount() == 3);
   REQUIRE(ob.lastCallArgs() == std::pair{12, 9});
@@ -245,9 +245,9 @@ TEST_CASE("Lift Calls", "[Observable]") {
 
 TEST_CASE("Integrated test case", "[Observable]") {
   MockObserver<int> ob;
-  Mutable<int> x(0);
-  Mutable<int> y(1);
-  Mutable<int> z(2);
+  auto [x, UpdateX] = Observable<int>::Mutable(0);
+  auto [y, UpdateY] = Observable<int>::Mutable(1);
+  auto [z, UpdateZ] = Observable<int>::Mutable(2);
   auto obs0 = Monad<Observable>::Lift([](int a, int b, int c) {
     return a + b + c;
   }, x, y, z);
@@ -264,9 +264,9 @@ TEST_CASE("Integrated test case", "[Observable]") {
   auto unob = obs.Observe(ob);
 
   obs.Transaction([=]() mutable {
-    x.Update(3);
-    y.Update(4);
-    z.Update(5);
+    UpdateX(3);
+    UpdateY(4);
+    UpdateZ(5);
   });
 
   REQUIRE(obs.Value() == 12);
@@ -274,9 +274,9 @@ TEST_CASE("Integrated test case", "[Observable]") {
   REQUIRE(ob.lastCallArgs() == std::pair{12, 3});
 
   obs.Transaction([=]() mutable {
-    x.Update(5);
-    y.Update(4);
-    z.Update(3);
+    UpdateX(5);
+    UpdateY(4);
+    UpdateZ(3);
   });
   REQUIRE(obs.Value() == 12);
   REQUIRE(ob.callCount() == 1);

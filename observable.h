@@ -98,6 +98,16 @@ public:
     typename Observable<T>::Unobserve unobInner_;
     typename Observable<Observable<T>>::Unobserve unobOutter_;
   };
+
+  class Updater
+  {
+  public:
+    Updater(std::shared_ptr<Subject> subject): subject_(subject) { }
+    void operator () (const T &val) { subject_->Notify(val); }
+  private:
+    std::shared_ptr<Subject> subject_;
+  };
+
 private:
   Observable(std::shared_ptr<Subject> subject) : subject_(subject) {}
 
@@ -127,16 +137,11 @@ public:
 
 protected:
   std::shared_ptr<Subject> subject_;
-};
 
-template <typename T>
-class Mutable: public Observable<T>
-{
 public:
-  Mutable(const T &value): Observable<T>(value) { }
-
-  void Update(const T &value) {
-    this->subject_->Notify(value);
+  static std::pair<Observable<T>, Updater> Mutable(const T &value) {
+    auto subject = std::make_shared<Subject>(value);
+    return std::make_pair(Observable<T>(subject), Updater(subject));
   }
 };
 
