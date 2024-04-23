@@ -118,7 +118,7 @@ public:
   template <typename F, typename V, typename... Args>
   Observable(const F &f, Observable<V> ob, Args... args):
     Observable(std::make_shared<JoinSubject>(ob.Bind([=](const V &v) {
-      return Observable(BindFn(f, v), args...);
+      return Observable(BindFn(std::function(f), v), args...);
     }))) {}
 
   bool operator == (const Observable<T> &ob) const {

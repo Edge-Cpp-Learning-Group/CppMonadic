@@ -218,7 +218,9 @@ TEST_CASE("Composing constructor", "[Observable]") {
   Mutable<int> y(1);
   Mutable<int> z(2);
 
-  Observable<int> obs(std::function([](int a, int b, int c) { return a + b + c; }), x, y, z);
+  Observable<int> obs([](int a, int b, int c) {
+    return a + b + c;
+  }, x, y, z);
 
   REQUIRE(obs.Value() == 3);
 
@@ -247,8 +249,9 @@ TEST_CASE("Integrated test case", "[Observable]") {
   Mutable<int> z(2);
 
   auto obs = Transactional(
-    Observable<int>(
-      std::function([](int a, int b, int c) { return a + b + c; }), x, y, z)
+    Observable<int>([](int a, int b, int c) {
+      return a + b + c;
+    }, x, y, z)
   );
 
   auto unob = obs.Observe(ob);
