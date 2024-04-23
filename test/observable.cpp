@@ -5,6 +5,7 @@
 #include <format>
 
 #include "../observable.h"
+#include "../monad.h"
 
 template <typename T>
 class MockObserver {
