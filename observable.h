@@ -11,6 +11,11 @@ template <typename T> class Observable;
 template <typename T>
 concept observable = std::is_base_of_v<decltype(Observable(std::declval<T>())), T>;
 
+template <typename R, typename Arg, typename... Args>
+std::function<R(Args...)> BindFn(std::function<R(Arg, Args...)> f, const Arg &arg) {
+  return std::function([=](Args... args) { return f(arg, args...); });
+}
+
 template <typename T>
 class Observable
 {
@@ -105,6 +110,15 @@ public:
   Observable(std::shared_ptr<Subject> subject) : subject_(subject) {}
   Observable(Observable<Observable<T>> ob) : Observable(std::make_shared<JoinSubject>(ob)) { }
 
+  template <typename F, typename V>
+  Observable(const F &f, Observable<V> ob): Observable(std::make_shared<MapSubject<V>>(ob, f)) { }
+
+  template <typename F, typename V, typename... Args>
+  Observable(const F &f, Observable<V> ob, Args... args):
+    Observable(std::make_shared<JoinSubject>(ob.Bind([=](const V &v) {
+      return Observable(BindFn(f, v), args...);
+    }))) {}
+
   template <typename F>
   Unobserve Observe(const F &f) const {
     return Unobserve(subject_, subject_->Observe(f));
@@ -115,25 +129,24 @@ public:
   }
 
   template <typename F>
-  Observable<std::invoke_result_t<F, T>> map(const F &f) const {
-    using ResultType = Observable<std::invoke_result_t<F, T>>;
-    return ResultType(std::make_shared<typename ResultType::MapSubject<T>>(*this, f));
+  Observable<std::invoke_result_t<F, T>> Map(const F &f) const {
+    return Observable<std::invoke_result_t<F, T>>(f, *this);
   }
 
   template <typename F>
-  std::invoke_result_t<F, T> bind(const F &f) const {
+  std::invoke_result_t<F, T> Bind(const F &f) const {
     using ResultType = std::invoke_result_t<F, T>;
-    return ResultType(std::make_shared<typename ResultType::JoinSubject>(map(f)));
+    return ResultType(std::make_shared<typename ResultType::JoinSubject>(Map(f)));
   }
 
   template <typename F>
   std::invoke_result_t<F, T> operator >> (const F &f) const requires observable<std::invoke_result_t<F, T>> {
-    return this->bind(f);
+    return this->Bind(f);
   }
 
   template <typename F>
   Observable<std::invoke_result_t<F, T>> operator >> (const F &f) const {
-    return this->map(f);
+    return this->Map(f);
   }
 
 protected:

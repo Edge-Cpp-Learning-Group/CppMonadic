@@ -69,7 +69,7 @@ TEST_CASE("Method map as Functor", "[Observable]") {
   MockObserver<std::string> obS;
 
   Mutable<int> mut(0);
-  Observable<std::string> obsStr = mut.map([](int i) { return std::to_string(i); });
+  Observable<std::string> obsStr = mut.Map([](int i) { return std::to_string(i); });
 
   auto unobI = mut.Observe(obI);
   auto unobS = obsStr.Observe(obS);
@@ -93,9 +93,9 @@ TEST_CASE("Method bind as Monad", "[Observable]") {
   Mutable<int> y(1);
   Mutable<int> z(2);
 
-  auto obsFormular = x.bind([=](int x) {
-    return y.bind([=](int y) {
-      return z.map([=](int z) {
+  auto obsFormular = x.Bind([=](int x) {
+    return y.Bind([=](int y) {
+      return z.Map([=](int z) {
         int w = (x + y) * z;
         return std::format("({} + {}) * {} = {}", x, y, z, w);
       });
@@ -211,4 +211,15 @@ TEST_CASE("Transactional update", "[Transactional]") {
 
   REQUIRE(ob.callCount() == 1);
   REQUIRE(ob.lastCallArgs() == std::pair{"(3 + 4) * 5 = 35", "(0 + 1) * 2 = 2"});
+}
+
+TEST_CASE("Composing constructor", "[Observable]") {
+  MockObserver<std::string> ob;
+  Mutable<int> x(0);
+  Mutable<int> y(1);
+  Mutable<int> z(2);
+
+  Observable<int> obs(std::function([](int a, int b, int c) { return a + b + c; }), x, y, z);
+
+  REQUIRE(obs.Value() == 3);
 }
