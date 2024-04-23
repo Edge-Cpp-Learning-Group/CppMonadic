@@ -41,8 +41,10 @@ public:
     const T &Value() const { return value_; }
 
     void Notify(const T &value) {
-      obs_.ForEach([this, &value](const Observer &ob) { ob(value, value_); });
-      value_ = value;
+      if (value != value_) {
+        obs_.ForEach([this, &value](const Observer &ob) { ob(value, value_); });
+        value_ = value;
+      }
     }
 
   private:
@@ -118,6 +120,10 @@ public:
     Observable(std::make_shared<JoinSubject>(ob.Bind([=](const V &v) {
       return Observable(BindFn(f, v), args...);
     }))) {}
+
+  bool operator == (const Observable<T> &ob) const {
+    return subject_ == ob.subject_;
+  }
 
   template <typename F>
   Unobserve Observe(const F &f) const {

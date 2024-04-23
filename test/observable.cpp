@@ -60,8 +60,7 @@ TEST_CASE("Observe and unobserve", "[Observable]") {
 
   auto unob3 = mut.Observe(ob);
   mut.Update(4);
-  REQUIRE(ob.callCount() == 3);
-  REQUIRE(ob.lastCallArgs() == std::pair{4, 4});
+  REQUIRE(ob.callCount() == 2);
 }
 
 TEST_CASE("Method map as Functor", "[Observable]") {
