@@ -51,6 +51,28 @@ public:
     Chain<Observer> obs_;
   };
 
+  class Unobserve
+  {
+  public:
+    Unobserve(std::shared_ptr<Subject> subject, Chain<Observer>::Deleter &&deleter)
+      : subject_(subject), deleter_(std::move(deleter)) { }
+
+    Unobserve(const Unobserve &) = delete;
+    Unobserve& operator = (const Unobserve &) = delete;
+
+    Unobserve(Unobserve &&) = default;
+    Unobserve& operator = (Unobserve &&unob) = default;
+
+    Observable<T> operator () () {
+      deleter_();
+      return Observable<T>(std::move(subject_));
+    }
+    
+  private:
+    std::shared_ptr<Subject> subject_;
+    Chain<Observer>::Deleter deleter_;
+  };
+
   template <typename U>
   class MapSubject: public Subject
   {
@@ -83,28 +105,6 @@ public:
   private:
     typename Observable<T>::Unobserve unobInner_;
     typename Observable<Observable<T>>::Unobserve unobOutter_;
-  };
-
-  class Unobserve
-  {
-  public:
-    Unobserve(std::shared_ptr<Subject> subject, Chain<Observer>::Deleter &&deleter)
-      : subject_(subject), deleter_(std::move(deleter)) { }
-
-    Unobserve(const Unobserve &) = delete;
-    Unobserve& operator = (const Unobserve &) = delete;
-
-    Unobserve(Unobserve &&) = default;
-    Unobserve& operator = (Unobserve &&unob) = default;
-
-    Observable<T> operator () () {
-      deleter_();
-      return Observable<T>(std::move(subject_));
-    }
-    
-  private:
-    std::shared_ptr<Subject> subject_;
-    Chain<Observer>::Deleter deleter_;
   };
 
 public:
