@@ -131,12 +131,6 @@ public:
     return subject_->Value();
   }
 
-  template <typename F>
-  Observable<std::invoke_result_t<F, T>> Map(const F &f) const {
-    using ResultType = Observable<std::invoke_result_t<F, T>>;
-    return ResultType(f, *this);
-  }
-
 protected:
   std::shared_ptr<Subject> subject_;
 };

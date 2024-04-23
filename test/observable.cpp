@@ -68,7 +68,7 @@ TEST_CASE("Method map as Functor", "[Observable]") {
   MockObserver<std::string> obS;
 
   Mutable<int> mut(0);
-  Observable<std::string> obsStr = mut.Map([](int i) { return std::to_string(i); });
+  Observable<std::string> obsStr = Monad<Observable>::Map([](int i) { return std::to_string(i); }, mut);
 
   auto unobI = mut.Observe(obI);
   auto unobS = obsStr.Observe(obS);
@@ -94,10 +94,10 @@ TEST_CASE("Method bind as Monad", "[Observable]") {
 
   auto obsFormular = Monad<Observable>::Bind([=](int x) {
     return Monad<Observable>::Bind([=](int y) {
-      return z.Map([=](int z) {
+      return Monad<Observable>::Map([=](int z) {
         int w = (x + y) * z;
         return std::format("({} + {}) * {} = {}", x, y, z, w);
-      });
+      }, z);
     }, y);
   }, x);
 
