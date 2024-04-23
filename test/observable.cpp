@@ -214,7 +214,7 @@ TEST_CASE("Transactional update", "[Transactional]") {
 }
 
 TEST_CASE("Composing constructor", "[Observable]") {
-  MockObserver<std::string> ob;
+  MockObserver<int> ob;
   Mutable<int> x(0);
   Mutable<int> y(1);
   Mutable<int> z(2);
@@ -222,4 +222,21 @@ TEST_CASE("Composing constructor", "[Observable]") {
   Observable<int> obs(std::function([](int a, int b, int c) { return a + b + c; }), x, y, z);
 
   REQUIRE(obs.Value() == 3);
+
+  auto unob = obs.Observe(ob);
+
+  x.Update(3);
+  REQUIRE(obs.Value() == 6);
+  REQUIRE(ob.callCount() == 1);
+  REQUIRE(ob.lastCallArgs() == std::pair{6, 3});
+
+  y.Update(4);
+  REQUIRE(obs.Value() == 9);
+  REQUIRE(ob.callCount() == 2);
+  REQUIRE(ob.lastCallArgs() == std::pair{9, 6});
+
+  z.Update(5);
+  REQUIRE(obs.Value() == 12);
+  REQUIRE(ob.callCount() == 3);
+  REQUIRE(ob.lastCallArgs() == std::pair{12, 9});
 }
