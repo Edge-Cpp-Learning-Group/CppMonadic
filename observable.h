@@ -137,12 +137,6 @@ public:
     return ResultType(f, *this);
   }
 
-  template <typename F>
-  std::invoke_result_t<F, T> Bind(const F &f) const {
-    using ResultType = std::invoke_result_t<F, T>;
-    return ResultType(Map(f));
-  }
-
 protected:
   std::shared_ptr<Subject> subject_;
 };
@@ -187,12 +181,15 @@ struct Monad {
 
   template <typename F, typename T>
   static M<std::invoke_result_t<F, T>> Map(const F &f, M<T> mVal) {
-    return mVal.Map(f);
+    using ResultType = M<std::invoke_result_t<F, T>>;
+    return ResultType(f, mVal);
   }
 
   template <typename F, typename T>
   static std::invoke_result_t<F, T> Bind(const F &f, M<T> mVal) {
-    return mVal.Bind(f);
+    using U = std::invoke_result_t<F, T>;
+    M<M<U>> mmVal = M<M<U>>(f, mVal);
+    return M<U>(mmVal);
   }
 
   template <typename T>
@@ -201,15 +198,15 @@ struct Monad {
   }
 
   template <typename F, typename V>
-  static M<std::invoke_result_t<F, V>> Lift(const F &f, M<V> ob) {
-    return ob.Map(f);
+  static M<std::invoke_result_t<F, V>> Lift(const F &f, M<V> mVal) {
+    return Monad<M>::Map(f, mVal);
   }
 
   template <typename F, typename V, typename... Args>
-  static auto Lift(const F &f, M<V> ob, Args... args) {
-    return ob.Bind([=](const V &v) {
+  static auto Lift(const F &f, M<V> mVal, Args... args) {
+    return Bind([=](const V &v) {
       return Lift(BindFn(std::function(f), v), args...);
-    });
+    }, mVal);
   }
 };
 
@@ -218,10 +215,10 @@ concept monad = std::is_base_of_v<decltype(M(std::declval<T>())), T>;
 
 template <template <typename> typename M, typename T, typename F>
 std::invoke_result_t<F, T> operator >> (const M<T> &val, const F &f) requires monad<M, std::invoke_result_t<F, T>> {
-  return val.Bind(f);
+  return Monad<M>::Bind(f, val);
 }
 
 template <template <typename> typename M, typename T, typename F>
 M<std::invoke_result_t<F, T>> operator >> (const M<T> &val, const F &f) {
-  return val.Map(f);
+  return Monad<M>::Map(f, val);
 }
