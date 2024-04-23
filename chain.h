@@ -59,6 +59,7 @@ public:
     Deleter& operator = (Deleter &&del) {
       Run();
       ptr_ = std::move(del.ptr_);
+      return *this;
     }
 
     Deleter(const Deleter &) = delete;

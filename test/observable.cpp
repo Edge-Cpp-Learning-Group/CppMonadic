@@ -43,7 +43,7 @@ TEST_CASE("Observe and unobserve", "[Observable]") {
   REQUIRE(ob.callCount() == 1);
   REQUIRE(ob.lastCallArgs() == std::pair{1, 0});
 
-  unob1->Run();
+  unob1.Run();
 
   mut.Update(2);
   REQUIRE(ob.callCount() == 1);
@@ -120,6 +120,36 @@ TEST_CASE("Method bind as Monad", "[Observable]") {
   REQUIRE(ob.lastCallArgs() == std::pair{"(3 + 4) * 5 = 35", "(3 + 4) * 2 = 14"});
 }
 
+TEST_CASE("Method join as Monad", "[Observable]") {
+  Mutable<int> x(0);
+  Mutable<int> y(1);
+  Mutable<Observable<int>> z(x);
+  Observable<int> w(z);
+  MockObserver<int> ob;
+
+  auto unob = w.Observe(ob);
+
+  REQUIRE(w.Value() == 0);
+
+  x.Update(2);
+  REQUIRE(w.Value() == 2);
+  REQUIRE(ob.callCount() == 1);
+  REQUIRE(ob.lastCallArgs() == std::pair(2, 0));
+
+  z.Update(y);
+  REQUIRE(w.Value() == 1);
+  REQUIRE(ob.callCount() == 2);
+  REQUIRE(ob.lastCallArgs() == std::pair(1, 2));
+
+  y.Update(3);
+  REQUIRE(w.Value() == 3);
+  REQUIRE(ob.callCount() == 3);
+  REQUIRE(ob.lastCallArgs() == std::pair(3, 1));
+
+  x.Update(4);
+  REQUIRE(w.Value() == 3);
+  REQUIRE(ob.callCount() == 3);
+}
 
 TEST_CASE("Sugar with operator >>", "[Observable]") {
   MockObserver<std::string> ob;

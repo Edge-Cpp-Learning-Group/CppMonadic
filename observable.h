@@ -6,12 +6,6 @@
 
 #include "./chain.h"
 
-class Effect {
-public:
-  virtual ~Effect() {};
-  virtual void Run () = 0;
-};
-
 template <typename T> class Observable;
 
 template <typename T>
@@ -51,49 +45,54 @@ public:
     Chain<Observer> obs_;
   };
 
+  template <typename U>
   class MapSubject: public Subject
   {
   public:
-    template <typename U, typename F>
-    MapSubject(const Observable<U> &ob, const F &func):
+    template <typename F>
+    MapSubject(Observable<U> ob, const F &func):
       Subject(func(ob.Value())),
       unob_(ob.Observe([this, func = func](const U &val, const U &valOld) {
         this->Notify(func(val));
       })) { }
   private:
-    std::shared_ptr<Effect> unob_;
+    typename Observable<U>::Unobserve unob_;
   };
 
   class JoinSubject: public Subject
   {
   public:
-    JoinSubject(const Observable<Observable<T>> &ob): Subject(ob.Value().Value()) {
-      ObserveInner(ob.Value());
-      unobOutter_ = ob.Observe([this](const Observable<T> &obNew, const Observable<T> &obOld) mutable {
+    JoinSubject(Observable<Observable<T>> ob):
+      Subject(ob.Value().Value()),
+      unobInner_(ob.Value().Observe([this](const T &valNew, const T &valOld) {
+        this->Notify(valNew);
+      })),
+      unobOutter_(ob.Observe([this](const Observable<T> &obNew, const Observable<T> &obOld) mutable {
+        this->unobInner_ = std::move(obNew.Observe([this](const T &valNew, const T &valOld) {
+          this->Notify(valNew);
+        }));
         this->Notify(obNew.Value());
-        this->ObserveInner(obNew);
-      });
-    }
+      })) { }
+
   private:
-    void ObserveInner(const Observable<T> &ob) {
-      this->unobInner_ = ob.Observe([this](const T &valueNew, const T &valueOld) {
-        this->Notify(valueNew);
-      });
-    }
-  private:
-    std::shared_ptr<Effect> unobOutter_;
-    std::shared_ptr<Effect> unobInner_;
+    typename Observable<T>::Unobserve unobInner_;
+    typename Observable<Observable<T>>::Unobserve unobOutter_;
   };
 
-  class Unobserve : public Effect
+  class Unobserve
   {
   public:
     Unobserve(std::shared_ptr<Subject> subject, Chain<Observer>::Deleter &&deleter)
       : subject_(subject), deleter_(std::move(deleter)) { }
 
-    virtual void Run() override {
+    Unobserve(const Unobserve &) = delete;
+    Unobserve& operator = (const Unobserve &) = delete;
+    Unobserve(Unobserve &&) = default;
+    Unobserve& operator = (Unobserve &&unob) = default;
+
+    Observable<T> Run() {
       deleter_.Run();
-      subject_ = nullptr;
+      return Observable<T>(std::move(subject_));
     }
     
   private:
@@ -102,12 +101,13 @@ public:
   };
 
 public:
-  Observable(T &&value): Observable(std::make_shared<Subject>(std::forward<T>(value))) { }
+  Observable(const T &value): Observable(std::make_shared<Subject>(value)) { }
   Observable(std::shared_ptr<Subject> subject) : subject_(subject) {}
+  Observable(Observable<Observable<T>> ob) : Observable(std::make_shared<JoinSubject>(ob)) { }
 
   template <typename F>
-  std::shared_ptr<Effect> Observe(const F &f) const {
-    return std::make_shared<Unobserve>(subject_, subject_->Observe(f));
+  Unobserve Observe(const F &f) const {
+    return Unobserve(subject_, subject_->Observe(f));
   }
 
   const T &Value() const {
@@ -117,7 +117,7 @@ public:
   template <typename F>
   Observable<std::invoke_result_t<F, T>> map(const F &f) const {
     using ResultType = Observable<std::invoke_result_t<F, T>>;
-    return ResultType(std::make_shared<typename ResultType::MapSubject>(*this, f));
+    return ResultType(std::make_shared<typename ResultType::MapSubject<T>>(*this, f));
   }
 
   template <typename F>
@@ -144,9 +144,9 @@ template <typename T>
 class Mutable: public Observable<T>
 {
 public:
-  Mutable(T &&value): Observable<T>(std::forward<T>(value)) { }
+  Mutable(const T &value): Observable<T>(value) { }
 
-  void Update(T &&value) {
-    this->subject_->Notify(std::forward<T>(value));
+  void Update(const T &value) {
+    this->subject_->Notify(value);
   }
 };
