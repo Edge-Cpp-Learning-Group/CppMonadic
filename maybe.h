@@ -17,9 +17,12 @@ public:
   Maybe(const Maybe<Maybe<T>> &mmVal): Maybe(mmVal.HasValue() ? mmVal.Value().opt_ : std::nullopt) { }
 
   const T &Value() const { return opt_.value(); }
+
   bool HasValue() const { return opt_.has_value(); }
 
   bool operator == (const Maybe &mVal) const { return opt_ == mVal.opt_; }
+
+  explicit operator bool () const { return opt_.has_value(); }
 
 private:
   std::optional<T> opt_;
