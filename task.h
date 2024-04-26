@@ -1,15 +1,11 @@
 #pragma once
 #include <memory>
+#include <iostream>
 
 class IMission
 {
 public:
   IMission(): called_(false) { }
-  IMission(const IMission &) = delete;
-  IMission(IMission &&) = delete;
-  virtual ~IMission() final { (*this)(); }
-  IMission& operator = (const IMission &) = delete;
-  IMission& operator = (IMission &&) = delete;
   void operator () () {
     if (!called_) {
       called_ = true;
@@ -17,7 +13,7 @@ public:
     }
   }
 protected:
-  virtual void Run() = 0;
+  virtual void Run() const = 0;
 private:
   bool called_;
 public:
@@ -27,7 +23,7 @@ public:
     {
     public:
       Mission(F &&f): f_(std::move(f)) {}
-      virtual void Run override { f(); }
+      virtual void Run() const override { f_(); }
     private:
       F f_;
     };
@@ -36,11 +32,31 @@ public:
   }
 };
 
+class OneTimeExecution
+{
+public:
+  OneTimeExecution(std::unique_ptr<IMission> mission): mission_(std::move(mission)) {}
+  OneTimeExecution(const OneTimeExecution &) = delete;
+  OneTimeExecution(OneTimeExecution &&) = delete;
+  OneTimeExecution& operator = (const OneTimeExecution &) = delete;
+  OneTimeExecution& operator = (OneTimeExecution &&) = delete;
+  ~OneTimeExecution() { (*this)(); }
+
+  void operator () () {
+    if (mission_) {
+      (*std::move(mission_))();
+    }
+  }
+
+private:
+  std::unique_ptr<IMission> mission_;
+};
+
 template <typename T>
 class IHandler
 {
 public:
-  virtual std::unique_ptr<IMission> Invoke(const T &val) const = 0;
+  virtual OneTimeExecution Invoke(const T &val) const = 0;
 
   template <typename F>
   static std::unique_ptr<IHandler> Make(F &&f) {
@@ -48,8 +64,10 @@ public:
     {
     public:
       Handler(const F &f):  f_(f) {}
-      virtual std::unique_ptr<IMission> Invoke(const T &val) override {
-        return IMission::Make([f = f_, val = val]() { f(val); });
+      virtual OneTimeExecution Invoke(const T &val) const override {
+        return OneTimeExecution(IMission::Make([f = f_, val = val]() {
+          f(val);
+        }));
       }
     private:
       F f_;
@@ -64,14 +82,16 @@ template <typename T>
 class ITask
 {
 public:
-  virtual std::unique_ptr<IMission> Execute(std::unique_ptr<IHandler> handler) = 0;
+  virtual OneTimeExecution Execute(std::unique_ptr<IHandler<T>> handler) = 0;
 private:
   class PureTask: public ITask<T>
   {
   public:
     PureTask(const T &val): val_(val) {}
-    virtual std::unique_ptr<IMission> Execute(std::unique_ptr<IHandler> handler) override {
-      return IMission::Make([=](){ return handler->Invoke(val_); });
+    virtual OneTimeExecution Execute(std::unique_ptr<IHandler<T>> handler) override {
+      return OneTimeExecution(IMission::Make([handler = std::move(handler), val = val_](){
+        return handler->Invoke(val);
+      }));
     }
   private:
     T val_;
@@ -79,8 +99,8 @@ private:
 
 public:
   template <typename F>
-  std::unique_ptr<IMission> Execute(const F &f) {
-    return Execute(IHandler::Make(f));
+  OneTimeExecution Execute(const F &f) {
+    return OneTimeExecution(Execute(IHandler<T>::Make(f)));
   }
 public:
   static std::unique_ptr<ITask> Make(const T &val) {

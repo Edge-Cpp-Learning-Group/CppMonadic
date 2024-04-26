@@ -103,7 +103,7 @@ public:
   {
   public:
     Updater(std::shared_ptr<Subject> subject): subject_(subject) { }
-    void operator () (const T &val) { subject_->Notify(val); }
+    void operator () (const T &val) const { subject_->Notify(val); }
   private:
     std::shared_ptr<Subject> subject_;
   };
