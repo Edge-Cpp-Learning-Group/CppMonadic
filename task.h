@@ -5,17 +5,8 @@
 class IMission
 {
 public:
-  IMission(): called_(false) { }
-  void operator () () {
-    if (!called_) {
-      called_ = true;
-      Run();
-    }
-  }
-protected:
+  virtual ~IMission() {}
   virtual void Run() const = 0;
-private:
-  bool called_;
 public:
   template <typename F>
   static std::unique_ptr<IMission> Make(F &&f) {
@@ -44,7 +35,7 @@ public:
 
   void operator () () {
     if (mission_) {
-      (*std::move(mission_))();
+      std::move(mission_)->Run();
     }
   }
 
@@ -56,6 +47,7 @@ template <typename T>
 class IHandler
 {
 public:
+  virtual ~IHandler() {};
   virtual OneTimeExecution Invoke(const T &val) const = 0;
 
   template <typename F>
@@ -83,6 +75,7 @@ class ITask
 {
 public:
   virtual OneTimeExecution Execute(std::unique_ptr<IHandler<T>> handler) = 0;
+  virtual ~ITask() {}
 private:
   class PureTask: public ITask<T>
   {
@@ -97,6 +90,23 @@ private:
     T val_;
   };
 
+  template <typename F, typename U>
+  class MapTask: public ITask<T>
+  {
+  public:
+    MapTask(const F &f, std::shared_ptr<ITask<U>> task): f_(f), task_(task) { }
+
+    virtual OneTimeExecution Execute(std::unique_ptr<IHandler<T>> handler) override {
+      return task_->Execute(IHandler<U>::Make([handler = std::move(handler), f = f_](const U &val) {
+        handler->Invoke(f(val));
+      }));
+    }
+  private:
+    F f_;
+    std::shared_ptr<ITask<U>> task_;
+  };
+
+
 public:
   template <typename F>
   OneTimeExecution Execute(const F &f) {
@@ -105,6 +115,11 @@ public:
 public:
   static std::unique_ptr<ITask> Make(const T &val) {
     return std::make_unique<PureTask>(val);
+  }
+
+  template <typename F, typename U>
+  static std::unique_ptr<ITask> Make(const F &f, std::shared_ptr<U> task) {
+    return std::make_unique<MapTask<F, U>>(f, task);
   }
 private:
   std::unique_ptr<ITask> impl_;
