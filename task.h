@@ -106,7 +106,6 @@ private:
     std::shared_ptr<ITask<U>> task_;
   };
 
-
 public:
   template <typename F>
   OneTimeExecution Execute(const F &f) {

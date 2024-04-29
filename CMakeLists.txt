@@ -21,6 +21,7 @@ add_executable(
   test/observable.cpp
   test/maybe.cpp
   test/task.cpp
+  test/effect.cpp
 )
 
 target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)
