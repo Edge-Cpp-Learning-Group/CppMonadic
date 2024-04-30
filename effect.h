@@ -1,20 +1,23 @@
 #pragma once
+#include <memory>
+#include <optional>
+#include <variant>
 
 template <typename T>
-class Effect
+class Effect final
 {
 private:
   class IEffect {
   public:
     virtual ~IEffect() {}
-    virtual T operator () () const = 0;
+    virtual T operator () () = 0;
   };
 
   template <typename F>
   class EffectImpl: public IEffect {
   public:
     EffectImpl(F &&f): f_(std::forward<F>(f)) {}
-    virtual T operator() () const override { return f_(); }
+    virtual T operator() () override { return f_(); }
   private:
     F f_;
   };

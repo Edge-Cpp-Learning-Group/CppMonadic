@@ -32,7 +32,7 @@ struct Monad
   template <typename F, typename V, typename... Args>
   static constexpr auto Lift(F &&f, const M<V> &mVal, M<Args>... mArgs) {
     return Bind(mVal, [f = std::move(f), mArgs...](const V &v) {
-      return Lift([f = std::move(f), v](const Args &... args) {
+      return Lift([f = std::move(f), v = v](const Args &... args) {
         return f(v, args...);
       }, mArgs...);
     });
