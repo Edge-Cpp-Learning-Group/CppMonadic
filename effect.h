@@ -34,6 +34,6 @@ public:
 
   template <typename F, typename U>
   static constexpr Effect Bind(const Effect<U> &mVal, F &&f) {
-    return Effect([mVal = mVal, f = std::forward<F>(f)] { return f(mVal())(); });
+    return Effect([mVal = mVal, f = std::move(f)] { return f(mVal())(); });
   }
 };
