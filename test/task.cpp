@@ -6,13 +6,18 @@ TEST_CASE("Execute task", "[Task]") {
   int from = 1;
   int to = 0;
 
-  auto task = Task<int>([from](Task<int>::Callback cb) {
+  auto task = Task<int>([&from](Task<int>::Callback cb) {
     return cb(from);
   });
 
-  task([&to](int n) {
-    return [&to, n](){ to = n; };
-  });
-
+  task([&to](int n) { return [&to, n](){ to = n; }; });
   REQUIRE(to == 1);
+
+  {
+    from = 2;
+    auto eff = task([&to](int n) { return [&to, n](){ to = n; }; });
+    REQUIRE(to == 1);
+  }
+
+  REQUIRE(to == 2);
 }

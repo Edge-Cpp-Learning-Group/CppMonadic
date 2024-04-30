@@ -1,5 +1,4 @@
 #pragma once
-#include <iostream>
 #include "effect.h"
 #include "reader.h"
 #include "single-execution.h"
