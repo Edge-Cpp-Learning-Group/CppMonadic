@@ -1,11 +1,18 @@
 #include <catch2/catch_test_macros.hpp>
-#include "../task.h"
+#include <iostream>
+#include "../task2.h"
 
 TEST_CASE("Execute task", "[Task]") {
-  int val = 0;
+  int from = 1;
+  int to = 0;
 
-  auto task = ITask<int>::Make(1);
-  task->Execute([&val](int n) { val = n; });
+  auto task = Task<int>([from](Task<int>::Callback cb) {
+    return cb(from);
+  });
 
-  REQUIRE(val == 1);
+  task([&to](int n) {
+    return [&to, n](){ to = n; };
+  });
+
+  REQUIRE(to == 1);
 }
