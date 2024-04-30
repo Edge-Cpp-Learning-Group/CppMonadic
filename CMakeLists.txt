@@ -23,6 +23,7 @@ add_executable(
   test/task.cpp
   test/effect.cpp
   test/single-execution.cpp
+  test/reader.cpp
 )
 
 target_link_libraries(tests PRIVATE Catch2::Catch2WithMain)

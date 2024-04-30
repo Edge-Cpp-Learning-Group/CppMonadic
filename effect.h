@@ -11,7 +11,7 @@ class Effect final
 private:
   class IEffect {
   public:
-    virtual ~IEffect() {}
+    virtual ~IEffect() = default;
     virtual T operator () () = 0;
   };
 
@@ -38,7 +38,7 @@ public:
   T operator () () const { return (*ptr_)(); }
 
   static constexpr Effect Pure(const T &val) {
-    return Effect([val] { return val; });
+    return Effect([val = val] { return val; });
   }
 
   template <typename F, typename U>
