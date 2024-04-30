@@ -1,9 +1,11 @@
 #pragma once
 #include <memory>
-#include <optional>
 #include <variant>
 
-template <typename T>
+template <typename F>
+concept returning_void = std::is_same_v<std::invoke_result_t<F>, void>;
+
+template <typename T = std::monostate>
 class Effect final
 {
 private:
@@ -28,6 +30,10 @@ public:
   template <typename F>
   Effect(F &&f):
     ptr_(std::make_unique<EffectImpl<F>>(std::forward<F>(f))) {}
+  
+  template <returning_void F>
+  Effect(F &&f):
+    ptr_(new EffectImpl([f = std::move(f)] () mutable { f(); return T(); })) {}
 
   T operator () () const { return (*ptr_)(); }
 
